@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import {
   AppPageHeader,
   Card,
@@ -5,33 +6,93 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  DataTable,
 } from '@synapcores/app-framework';
 import { requireSession } from '@/lib/session';
+import { listSars } from '@/lib/sar-drafter';
 
-/**
- * SAR drafts + filings. Phase 3 wires the sar-drafter agent + the
- * jurisdiction-specific narrative editor. Phase 4 adds the FinCEN BSA
- * E-Filing adapter for actual filing.
- */
+const STATUS_TONE: Record<string, string> = {
+  draft: 'text-amber-300',
+  review: 'text-blue-300',
+  approved: 'text-green-400',
+  filed: 'text-primary font-semibold',
+  rejected: 'text-destructive',
+};
+
 export default async function SarsPage() {
-  await requireSession();
+  const session = await requireSession();
+  if (!session.tenant) return null;
+  const sars = await listSars(session.tenant.id);
+
   return (
     <div className="p-6 md:p-8 max-w-5xl space-y-6">
       <AppPageHeader
         title="SARs"
-        description="Drafted + filed Suspicious Activity Reports."
+        description="Drafted, reviewed, approved, and filed Suspicious Activity Reports. Run the sar-drafter agent from a transaction detail page to start a new one."
       />
-      <Card>
-        <CardHeader>
-          <CardTitle>No SARs yet</CardTitle>
-          <CardDescription>
-            Drafts land here when the <code>sar-drafter</code> agent runs against
-            a case. Phase 3 wires the dispatch + jurisdiction-specific narrative
-            template (FinCEN SAR, JMLSG/NCA, AUSTRAC SMR, FINTRAC STR, EU goAML).
-            Phase 4 adds the BSA E-Filing adapter for one-click submission.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+      {sars.length === 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>No SARs yet</CardTitle>
+            <CardDescription>
+              Click into a SAR-candidate transaction and run the{' '}
+              <code>sar-drafter</code> agent. The agent retrieves similar prior
+              SARs, walks the UBO graph, and applies the jurisdiction-specific
+              template. Fallback is deterministic — works without an LLM
+              configured.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      ) : (
+        <DataTable
+          rows={sars}
+          rowKey={(r) => r.id}
+          columns={[
+            {
+              key: 'created_at',
+              header: 'Drafted',
+              cell: (r) => (
+                <span className="whitespace-nowrap text-muted-foreground text-xs">
+                  {new Date(String(r.created_at)).toLocaleString()}
+                </span>
+              ),
+            },
+            {
+              key: 'jurisdiction',
+              header: 'Jurisdiction',
+              cell: (r) => <code className="text-xs">{r.jurisdiction as string}</code>,
+            },
+            {
+              key: 'drafted_by',
+              header: 'Drafted by',
+              cell: (r) => <code className="text-xs">{(r.drafted_by as string) ?? '—'}</code>,
+            },
+            {
+              key: 'status',
+              header: 'Status',
+              cell: (r) => (
+                <span
+                  className={`${STATUS_TONE[String(r.status)] ?? ''} text-sm`}
+                >
+                  {r.status as string}
+                </span>
+              ),
+            },
+            {
+              key: 'id',
+              header: '',
+              cell: (r) => (
+                <Link
+                  href={`/sars/${r.id}`}
+                  className="text-primary text-xs hover:underline"
+                >
+                  Open →
+                </Link>
+              ),
+            },
+          ]}
+        />
+      )}
     </div>
   );
 }

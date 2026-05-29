@@ -1,7 +1,8 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import {
   AppPageHeader,
+  Button,
   Card,
   CardContent,
   CardDescription,
@@ -10,6 +11,32 @@ import {
 } from '@synapcores/app-framework';
 import { requireSession } from '@/lib/session';
 import { getTransaction, type TxStatus, type TxFlags } from '@/lib/aml-transactions';
+import { draftSarFromTransaction } from '@/lib/sar-drafter';
+import type { Jurisdiction } from '@/lib/sar-templates';
+
+const JURISDICTIONS: Jurisdiction[] = [
+  'us-fincen',
+  'uk-nca',
+  'au-austrac',
+  'ca-fintrac',
+  'eu-goaml',
+];
+
+async function draftSar(formData: FormData): Promise<void> {
+  'use server';
+  const session = await requireSession();
+  if (!session.tenant) return;
+  const txId = String(formData.get('tx_id') ?? '');
+  const jurisdiction =
+    (String(formData.get('jurisdiction') ?? 'us-fincen') as Jurisdiction);
+  const result = await draftSarFromTransaction(
+    session.tenant.id,
+    txId,
+    jurisdiction,
+    session.user.id,
+  );
+  redirect(`/sars/${result.sarId}?ok=saved`);
+}
 
 const STATUS_TONE: Record<TxStatus, string> = {
   new: 'text-primary',
@@ -114,13 +141,37 @@ export default async function TransactionDetailPage({
         <CardHeader>
           <CardTitle>SAR drafting</CardTitle>
           <CardDescription>
-            Phase 3 wires the <code>sar-drafter</code> agent — it walks the UBO
-            graph, retrieves similar prior SARs, and produces a jurisdiction-
-            specific draft narrative.
+            Dispatch the <code>sar-drafter</code> agent. The engine walks the
+            UBO graph, retrieves similar prior SARs by vector cosine, and
+            produces a jurisdiction-templated draft. Falls back to a
+            deterministic narrative template if no LLM is configured.
           </CardDescription>
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          Phase 2 ships ingest + behavioral flagging only.
+        <CardContent>
+          <form action={draftSar} className="flex flex-wrap items-end gap-3">
+            <input type="hidden" name="tx_id" value={tx.id} />
+            <div className="space-y-1">
+              <label
+                htmlFor="jurisdiction"
+                className="text-xs text-muted-foreground"
+              >
+                Jurisdiction
+              </label>
+              <select
+                id="jurisdiction"
+                name="jurisdiction"
+                defaultValue={process.env.AML_DEFAULT_JURISDICTION ?? 'us-fincen'}
+                className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+              >
+                {JURISDICTIONS.map((j) => (
+                  <option key={j} value={j}>
+                    {j}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <Button type="submit">Draft SAR</Button>
+          </form>
         </CardContent>
       </Card>
     </div>
