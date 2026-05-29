@@ -13,6 +13,7 @@ import {
 import { ShieldCheck } from 'lucide-react';
 import { signIn } from '@/lib/auth';
 import { getSession } from '@/lib/session';
+import { requestMagicLink } from '@/app/login/actions';
 
 /**
  * Login page. Server-rendered; uses Auth.js `signIn('credentials', ...)`
@@ -41,6 +42,14 @@ export default async function LoginPage({
     });
   }
 
+  /** Magic-link path: mint a token + email it, then route to /login/verify. */
+  async function magicLinkLogin(formData: FormData): Promise<void> {
+    'use server';
+    const email = String(formData.get('email') ?? '').trim();
+    await requestMagicLink(email);
+    redirect('/login/verify');
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
       <Card className="w-full max-w-md">
@@ -56,7 +65,7 @@ export default async function LoginPage({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={login} className="space-y-4">
+          <form className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -83,7 +92,6 @@ export default async function LoginPage({
                 name="password"
                 type="password"
                 autoComplete="current-password"
-                required
               />
             </div>
             {sp.error && (
@@ -91,9 +99,28 @@ export default async function LoginPage({
                 {decodeURIComponent(sp.error)}
               </div>
             )}
-            <Button type="submit" className="w-full">
+            <Button type="submit" formAction={login} className="w-full">
               Sign in
             </Button>
+
+            <div className="my-1 flex items-center gap-3 text-xs text-muted-foreground">
+              <div className="h-px flex-1 bg-border" />
+              <span>or</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+
+            <Button
+              type="submit"
+              formAction={magicLinkLogin}
+              variant="outline"
+              className="w-full"
+              formNoValidate
+            >
+              Email me a sign-in link
+            </Button>
+            <p className="text-xs text-muted-foreground text-center">
+              No password needed — uses your email above.
+            </p>
           </form>
 
           <div className="mt-6 text-center text-xs text-muted-foreground">

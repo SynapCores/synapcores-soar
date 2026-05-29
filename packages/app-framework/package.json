@@ -11,7 +11,10 @@
     ".": "./src/index.ts",
     "./auth": "./src/auth/index.ts",
     "./auth/server": "./src/auth/server.ts",
+    "./auth/server-actions": "./src/auth/server-actions.ts",
     "./db": "./src/db/index.ts",
+    "./db/server": "./src/db/server.ts",
+    "./db/bootstrap": "./src/db/bootstrap.ts",
     "./agent": "./src/agent/index.ts",
     "./rbac": "./src/rbac/index.ts",
     "./ui": "./src/ui/index.ts",
@@ -20,7 +23,11 @@
     "./routes/audit": "./src/routes/audit.ts",
     "./tailwind-preset": "./tailwind-preset.cjs"
   },
+  "bin": {
+    "framework-bootstrap": "./bin/bootstrap.mjs"
+  },
   "scripts": {
+    "bootstrap": "node ./bin/bootstrap.mjs",
     "lint": "echo '(framework) lint TODO'",
     "typecheck": "tsc --noEmit"
   },

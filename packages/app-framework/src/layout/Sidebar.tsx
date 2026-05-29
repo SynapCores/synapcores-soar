@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, ShieldAlert, Users, Activity, FileLock2, Settings } from 'lucide-react';
+import { FileLock2, Settings, Users } from 'lucide-react';
 import { cn } from '../ui/cn';
 
 export interface SidebarItem {
@@ -112,15 +112,5 @@ export const FRAMEWORK_SIDEBAR_SECTION: SidebarSection = {
   ],
 };
 
-/**
- * Icons re-exported so apps can build their own sidebar items without
- * pulling lucide-react themselves (saves a peer-dep dance).
- */
-export const SidebarIcons = {
-  Home,
-  ShieldAlert,
-  Users,
-  Activity,
-  FileLock2,
-  Settings,
-};
+// SidebarIcons re-exported from layout/icons.ts (a plain module) so
+// they work in both server and client components.

@@ -20,6 +20,7 @@ import { z } from 'zod';
 
 import { getAdminClient } from '../db/server';
 import { DEFAULT_ROLE_GRANTS, type Role } from '../rbac/types';
+import { redeemAuthToken } from './users';
 import type {
   Session as FrameworkSession,
   TenantInfo,
@@ -49,6 +50,7 @@ export function createAuth(
     },
     providers: [
       Credentials({
+        id: 'credentials',
         name: 'Email + password',
         credentials: {
           email: { label: 'Email', type: 'email' },
@@ -64,8 +66,29 @@ export function createAuth(
           return user ? { id: user.id, email: user.email, name: user.name } : null;
         },
       }),
-      // Extra providers (magic-link Resend, GitHub, Google) get
-      // merged in by callers below.
+      // Magic-link provider — caller invokes `signIn('magic-link', { token })`
+      // after the user clicks the email link. The /login/verify page is the
+      // catch site for those clicks.
+      Credentials({
+        id: 'magic-link',
+        name: 'Magic link',
+        credentials: {
+          token: { label: 'Token', type: 'text' },
+        },
+        async authorize(raw) {
+          const token = typeof raw?.token === 'string' ? raw.token : '';
+          if (!token) return null;
+          try {
+            const userId = await redeemAuthToken(token, 'magic-link');
+            const user = await loadUser(userId);
+            return user ? { id: user.id, email: user.email, name: user.name } : null;
+          } catch {
+            return null;
+          }
+        },
+      }),
+      // Extra providers (Resend SMTP, GitHub, Google) get merged in
+      // by callers below.
       ...(extraConfig.providers ?? []),
     ],
     callbacks: {
@@ -93,6 +116,33 @@ export function createAuth(
   };
 
   return NextAuth(config);
+}
+
+/**
+ * Look up a user by id. Returns null if not found.
+ */
+async function loadUser(userId: string): Promise<UserInfo | null> {
+  const db = getAdminClient();
+  const result = await db.sql<{
+    id: string;
+    email: string;
+    name: string | null;
+    email_verified: boolean;
+    created_at: string;
+  }>(
+    `SELECT id, email, name, email_verified, created_at
+       FROM users WHERE id = $1 LIMIT 1`,
+    [userId],
+  );
+  const row = result.rows[0];
+  if (!row) return null;
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    emailVerified: row.email_verified,
+    createdAt: row.created_at,
+  };
 }
 
 /**
@@ -165,50 +215,55 @@ async function resolveFrameworkSession(
   if (!userRow) return null;
 
   // memberships (most recent first)
+  // CE engine note: JOINs across multiple tables are unreliable. We do
+  // the two-step lookup explicitly (N+1 — acceptable since N is small
+  // for any one user and this lives behind session cache).
   const memResult = await db.sql<{
     tenant_id: string;
-    tenant_name: string;
-    tenant_slug: string;
-    tenant_api_key_prefix: string;
     role: string;
   }>(
-    `SELECT m.tenant_id, t.name AS tenant_name, t.slug AS tenant_slug,
-            t.api_key_prefix AS tenant_api_key_prefix, m.role
-       FROM memberships m
-       JOIN tenants t ON t.id = m.tenant_id
-      WHERE m.user_id = $1
-      ORDER BY m.created_at DESC`,
+    `SELECT tenant_id, role
+       FROM memberships
+      WHERE user_id = $1
+      ORDER BY created_at DESC`,
     [userId],
   );
 
-  const memberships = memResult.rows.map((r) => ({
-    tenant: {
-      id: r.tenant_id,
-      name: r.tenant_name,
-      slug: r.tenant_slug,
-      apiKey: '', // not exposed in session shape — fetched separately for DB calls
-    } satisfies TenantInfo,
-    role: r.role as Role,
-  }));
+  const memberships: Array<{ tenant: TenantInfo; role: Role }> = [];
+  for (const m of memResult.rows) {
+    const tenantResult = await db.sql<{
+      id: string;
+      name: string;
+      slug: string;
+      api_key_prefix: string;
+    }>(
+      `SELECT id, name, slug, api_key_prefix
+         FROM tenants WHERE id = $1 LIMIT 1`,
+      [m.tenant_id],
+    );
+    const t = tenantResult.rows[0];
+    if (!t) continue;
+    memberships.push({
+      tenant: {
+        id: t.id,
+        name: t.name,
+        slug: t.slug,
+        apiKey: '', // not exposed in session shape — fetched separately for DB calls
+      },
+      role: m.role as Role,
+    });
+  }
 
   const active = memberships[0] ?? null;
 
-  // Resolve API key for the active tenant. We re-fetch this every
-  // session resolve — alternative is caching, but the security-
-  // sensitive nature of this token argues for freshness over speed.
+  // Resolve API key for the active tenant from the framework's
+  // file-backed secret store. (Production deployments swap this for
+  // AWS Secrets Manager / GCP Secret Manager / Vault — see
+  // readTenantApiKey below.)
   let activeTenant: TenantInfo | null = null;
   if (active) {
-    const keyResult = await db.sql<{ api_key_hash: string }>(
-      `SELECT api_key_hash FROM tenants WHERE id = $1 LIMIT 1`,
-      [active.tenant.id],
-    );
-    // NOTE — api_key_hash is bcrypt; we can't recover the plaintext.
-    // The framework stores the plaintext key in a separate secret
-    // store (e.g. /etc/synapcores/tenants/<id>.key on the host, or
-    // AWS Secrets Manager in Enterprise managed cloud). For Phase 1
-    // we use a local-file fallback; replaceable in production.
     const plaintext = await readTenantApiKey(active.tenant.id);
-    if (plaintext && keyResult.rows[0]) {
+    if (plaintext) {
       activeTenant = { ...active.tenant, apiKey: plaintext };
     }
   }
