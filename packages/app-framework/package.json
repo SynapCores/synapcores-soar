@@ -1,0 +1,58 @@
+{
+  "name": "@synapcores/app-framework",
+  "version": "0.1.0",
+  "description": "Reusable foundation for SynapCores vertical applications (SOAR, AML, Compliance, ...). Auth, RBAC, SynapCores SDK, agent dispatch, shared UI.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./auth": "./src/auth/index.ts",
+    "./auth/server": "./src/auth/server.ts",
+    "./db": "./src/db/index.ts",
+    "./agent": "./src/agent/index.ts",
+    "./rbac": "./src/rbac/index.ts",
+    "./ui": "./src/ui/index.ts",
+    "./layout": "./src/layout/index.ts",
+    "./routes/auth": "./src/routes/auth.ts",
+    "./routes/audit": "./src/routes/audit.ts",
+    "./tailwind-preset": "./tailwind-preset.cjs"
+  },
+  "scripts": {
+    "lint": "echo '(framework) lint TODO'",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "next": "^15.0.0",
+    "react": "^18.3.0 || ^19.0.0",
+    "react-dom": "^18.3.0 || ^19.0.0"
+  },
+  "dependencies": {
+    "@auth/core": "^0.37.0",
+    "@radix-ui/react-dialog": "^1.1.2",
+    "@radix-ui/react-dropdown-menu": "^2.1.2",
+    "@radix-ui/react-label": "^2.1.0",
+    "@radix-ui/react-slot": "^1.1.0",
+    "@radix-ui/react-tabs": "^1.1.1",
+    "@radix-ui/react-toast": "^1.2.2",
+    "@tanstack/react-table": "^8.20.5",
+    "bcryptjs": "^2.4.3",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.1",
+    "jose": "^5.9.6",
+    "lucide-react": "^0.460.0",
+    "next-auth": "5.0.0-beta.25",
+    "tailwind-merge": "^2.5.4",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^22.9.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "tailwindcss": "^3.4.14",
+    "typescript": "^5.6.3"
+  }
+}

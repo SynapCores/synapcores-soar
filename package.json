@@ -1,0 +1,20 @@
+{
+  "name": "@synapcores/apps-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SynapCores vertical-app monorepo — shared framework + SOAR / AML / Compliance / ... apps.",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "dev": "pnpm --filter @synapcores/soar dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "soar:dev": "pnpm --filter @synapcores/soar dev",
+    "soar:build": "pnpm --filter @synapcores/soar build"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  }
+}
