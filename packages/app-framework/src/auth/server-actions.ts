@@ -30,3 +30,13 @@ export {
   sendPasswordReset,
   sendTenantInvite,
 } from './mailer';
+
+export {
+  inviteUser,
+  listPendingInvites,
+  revokeInvitation,
+  acceptInvitation,
+  previewInvitation,
+  userExistsForEmail,
+} from './invitations';
+export type { InviteUserInput, PendingInvite } from './invitations';

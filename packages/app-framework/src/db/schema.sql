@@ -110,6 +110,26 @@ CREATE TABLE IF NOT EXISTS mcp_tokens (
 
 CREATE INDEX IF NOT EXISTS idx_mcp_tokens_tenant ON mcp_tokens(tenant_id);
 
+-- Personal API keys — programmatic access tokens minted by users for the
+-- SDK / CLI / CI use. Scoped to a tenant + user; carry that user's
+-- role at the time of mint (we don't re-resolve on use — if you change
+-- the user's role, rotate the key).
+CREATE TABLE IF NOT EXISTS api_keys (
+  id           TEXT PRIMARY KEY,
+  tenant_id    TEXT NOT NULL,
+  user_id      TEXT NOT NULL,
+  label        TEXT NOT NULL,
+  key_hash     TEXT NOT NULL,
+  key_prefix   TEXT NOT NULL,                  -- first 8 chars for display
+  created_at   TIMESTAMP NOT NULL DEFAULT NOW(),
+  expires_at   TIMESTAMP,
+  revoked_at   TIMESTAMP,
+  last_used_at TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_api_keys_tenant ON api_keys(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_api_keys_user   ON api_keys(user_id);
+
 -- The framework-level audit log. Apps drop their own IMMUTABLE
 -- domain-specific audit tables (e.g. soar.audit_log, aml.audit_log)
 -- — this one captures the cross-cutting events (login, invite,

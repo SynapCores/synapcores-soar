@@ -19,6 +19,7 @@
     "./rbac": "./src/rbac/index.ts",
     "./ui": "./src/ui/index.ts",
     "./layout": "./src/layout/index.ts",
+    "./pages": "./src/pages/index.ts",
     "./routes/auth": "./src/routes/auth.ts",
     "./routes/audit": "./src/routes/audit.ts",
     "./tailwind-preset": "./tailwind-preset.cjs"

@@ -12,3 +12,6 @@ export {
   CardFooter,
 } from './card';
 export { Label } from './label';
+export { DataTable } from './data-table';
+export type { DataTableColumn, DataTableProps } from './data-table';
+export { AppPageHeader } from './page-header';
