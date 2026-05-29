@@ -45,8 +45,8 @@ export async function mintMcpToken(opts: {
   const db = getAdminClient();
   await db.sql(
     `INSERT INTO mcp_tokens
-       (id, tenant_id, token_hash, label, scope, minted_by, expires_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+       (id, tenant_id, token_hash, label, scope, minted_by, created_at, expires_at)
+     VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7)`,
     [
       id,
       opts.tenantId,

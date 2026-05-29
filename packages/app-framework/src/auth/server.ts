@@ -269,9 +269,9 @@ async function resolveFrameworkSession(
   }
 
   const role = active?.role ?? null;
-  const permissions = new Set<string>(
-    role ? DEFAULT_ROLE_GRANTS[role] ?? [] : [],
-  );
+  const permissions: ReadonlyArray<string> = role
+    ? DEFAULT_ROLE_GRANTS[role] ?? []
+    : [];
 
   return {
     user: {

@@ -91,7 +91,7 @@ export function makeTeamPage({ appName }: TeamPageProps) {
     if (!session) redirect('/login');
     if (!session.tenant) redirect('/onboard');
     const sp = (await searchParams) ?? {};
-    const canInvite = session.permissions.has(FRAMEWORK_PERMISSIONS.TENANT_INVITE);
+    const canInvite = session.permissions.includes(FRAMEWORK_PERMISSIONS.TENANT_INVITE);
 
     const db = getAdminClient();
 

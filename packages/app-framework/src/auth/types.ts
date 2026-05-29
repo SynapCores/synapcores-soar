@@ -36,8 +36,10 @@ export interface Session {
   tenant: TenantInfo | null;
   /** Role within the active tenant. null if the user has no tenant yet. */
   role: Role | null;
-  /** Effective permission set (role-expanded). */
-  permissions: ReadonlySet<Permission>;
+  /** Effective permission set (role-expanded). Stored as an array
+   *  because JS Sets don't survive JWT serialization — use the
+   *  `hasPermission(session, perm)` helper instead of `.has()`. */
+  permissions: ReadonlyArray<Permission>;
   /** Membership list — for the tenant-switcher in the header. */
   memberships: ReadonlyArray<{ tenant: TenantInfo; role: Role }>;
 }

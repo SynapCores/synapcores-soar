@@ -13,7 +13,7 @@ export function hasPermission(
   permission: Permission,
 ): boolean {
   if (!session) return false;
-  return session.permissions.has(permission);
+  return session.permissions.includes(permission);
 }
 
 /**
@@ -27,7 +27,7 @@ export function requirePermission(
   if (!session) {
     throw new PermissionError('unauthenticated', 'You must be signed in.');
   }
-  if (!session.permissions.has(permission)) {
+  if (!session.permissions.includes(permission)) {
     throw new PermissionError(
       'forbidden',
       `Missing permission: ${permission}`,

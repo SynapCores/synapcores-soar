@@ -54,7 +54,7 @@ export default async function WorkspaceSettingsPage({
   if (!session) redirect('/login');
   if (!session.tenant) redirect('/onboard');
   const sp = (await searchParams) ?? {};
-  const canEdit = session.permissions.has(FRAMEWORK_PERMISSIONS.SETTINGS_WRITE);
+  const canEdit = session.permissions.includes(FRAMEWORK_PERMISSIONS.SETTINGS_WRITE);
 
   return (
     <div className="p-6 md:p-8 max-w-3xl space-y-6">

@@ -81,7 +81,7 @@ export default async function McpTokensPage({
   if (!session) redirect('/login');
   if (!session.tenant) redirect('/onboard');
   const sp = (await searchParams) ?? {};
-  const canMint = session.permissions.has(FRAMEWORK_PERMISSIONS.MCP_MINT);
+  const canMint = session.permissions.includes(FRAMEWORK_PERMISSIONS.MCP_MINT);
 
   const tokens = await listMcpTokens(session.tenant.id);
 
