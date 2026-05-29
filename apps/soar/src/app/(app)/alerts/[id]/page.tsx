@@ -1,7 +1,8 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import {
   AppPageHeader,
+  Button,
   Card,
   CardContent,
   CardDescription,
@@ -10,6 +11,7 @@ import {
 } from '@synapcores/app-framework';
 import { requireSession } from '@/lib/session';
 import { getAlert, type AlertSeverity, type AlertStatus } from '@/lib/soar-alerts';
+import { runTriage } from '@/lib/triage';
 
 const SEVERITY_TONE: Record<AlertSeverity, string> = {
   critical: 'bg-red-500/15 text-red-300 border-red-500/30',
@@ -112,15 +114,41 @@ export default async function AlertDetailPage({
         <CardHeader>
           <CardTitle>Triage</CardTitle>
           <CardDescription>
-            Agent dispatch lands in Phase 6 — verdict + tool trace will
-            render here.
+            Status: <span className="text-foreground">{alert.status}</span>
+            {alert.triaged_at && (
+              <> · last triaged {new Date(alert.triaged_at).toLocaleString()}</>
+            )}
           </CardDescription>
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          The Phase 4 build only ingests + dedups. Click triage on the
-          alert and the Phase 6 agent will populate this card.
+        <CardContent className="space-y-3">
+          {alert.status_reason && (
+            <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-sm">
+              <p className="font-semibold text-primary mb-1">Verdict</p>
+              <p>{alert.status_reason}</p>
+            </div>
+          )}
+          {alert.status === 'new' && (
+            <form action={dispatchTriage}>
+              <input type="hidden" name="id" value={alert.id} />
+              <Button type="submit">Run Tier-1 triage agent</Button>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Dispatches AGENT_RUN(&apos;tier1-triage&apos;) on the engine.
+                Falls back to a deterministic rule-based triage when no
+                LLM is configured (dev mode).
+              </p>
+            </form>
+          )}
         </CardContent>
       </Card>
     </div>
   );
+}
+
+async function dispatchTriage(formData: FormData): Promise<void> {
+  'use server';
+  const session = await requireSession();
+  if (!session.tenant) return;
+  const id = String(formData.get('id') ?? '');
+  await runTriage(session.tenant.id, id);
+  redirect(`/alerts/${id}`);
 }
