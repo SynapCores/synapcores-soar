@@ -5,40 +5,35 @@ import {
   CardHeader,
   CardTitle,
 } from '@synapcores/app-framework';
-import { Activity, ShieldAlert, Users, AlertCircle } from 'lucide-react';
+import { Activity, AlertCircle, ShieldAlert, Users } from 'lucide-react';
 import { requireSession } from '@/lib/session';
+import { alertCounts } from '@/lib/soar-alerts';
 
-/**
- * SOAR landing dashboard. Phase 1: stat cards + welcome banner.
- *
- * Phase 4 will replace the stat numbers with live counts:
- *   - open alerts (status='new')
- *   - active incidents (status IN ('investigating','responding'))
- *   - approvals waiting (approval_queue WHERE state='pending')
- *   - SLA breaches today
- */
 export default async function DashboardPage() {
   const session = await requireSession();
+  if (!session.tenant) return null;
+
+  const counts = await alertCounts(session.tenant.id);
 
   const stats = [
     {
-      label: 'Open alerts',
-      value: '—',
+      label: 'New alerts',
+      value: counts.new,
       icon: <ShieldAlert className="h-5 w-5 text-primary" />,
     },
     {
-      label: 'Active incidents',
-      value: '—',
+      label: 'In incidents',
+      value: counts.incident,
       icon: <Activity className="h-5 w-5 text-primary" />,
     },
     {
-      label: 'Pending approvals',
-      value: '—',
+      label: 'Auto-deduped',
+      value: counts.duplicate,
       icon: <AlertCircle className="h-5 w-5 text-primary" />,
     },
     {
-      label: 'Analysts online',
-      value: '—',
+      label: 'Closed total',
+      value: counts.closed,
       icon: <Users className="h-5 w-5 text-primary" />,
     },
   ];
@@ -50,7 +45,7 @@ export default async function DashboardPage() {
           Welcome, {session.user.name ?? session.user.email}
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
-          {session.tenant?.name ?? 'No workspace selected'} · {session.role}
+          {session.tenant.name} · {session.role}
         </p>
       </div>
 
@@ -72,18 +67,17 @@ export default async function DashboardPage() {
         <CardHeader>
           <CardTitle>Get started</CardTitle>
           <CardDescription>
-            Wire your SIEM&apos;s webhook at <code>/v1/soar/alerts</code> and
-            the triage agent goes to work. Phase 4 of the SOAR build is
-            adding the ingest endpoint + agent dispatch — you&apos;re looking
-            at the Phase 1 framework shell.
+            Point your SIEM/EDR webhook at{' '}
+            <code className="text-primary">/api/v1/soar/alerts</code> with a
+            Bearer API key from /settings/api-keys. Duplicates auto-close;
+            the rest queue for the Phase 6 triage agent.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm text-muted-foreground">
-          <p>
-            <span className="text-primary font-semibold">Next up:</span>{' '}
-            Alert ingest endpoint, dedup pipeline, investigation graph
-            view.
-          </p>
+        <CardContent className="text-sm text-muted-foreground">
+          You have <span className="text-foreground font-semibold">
+            {counts.total}
+          </span>{' '}
+          alert{counts.total === 1 ? '' : 's'} on record.
         </CardContent>
       </Card>
     </div>

@@ -11,6 +11,8 @@
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "framework:bootstrap": "pnpm --filter @synapcores/app-framework bootstrap",
+    "soar:bootstrap": "pnpm --filter @synapcores/soar bootstrap",
+    "bootstrap": "pnpm framework:bootstrap && pnpm soar:bootstrap",
     "soar:dev": "pnpm --filter @synapcores/soar dev",
     "soar:build": "pnpm --filter @synapcores/soar build"
   },

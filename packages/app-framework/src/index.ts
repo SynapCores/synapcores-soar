@@ -22,8 +22,15 @@ export {
   CardContent,
   CardFooter,
   Label,
+  DataTable,
+  AppPageHeader,
 } from './ui';
-export type { ButtonProps, InputProps } from './ui';
+export type {
+  ButtonProps,
+  InputProps,
+  DataTableColumn,
+  DataTableProps,
+} from './ui';
 
 // Layout (client-safe — server-only auth helpers live separately)
 export {
