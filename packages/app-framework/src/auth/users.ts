@@ -57,8 +57,8 @@ export async function createUser(input: CreateUserInput): Promise<UserInfo> {
     : null;
 
   await db.sql(
-    `INSERT INTO users (id, email, name, password_hash, email_verified)
-     VALUES ($1, $2, $3, $4, $5)`,
+    `INSERT INTO users (id, email, name, password_hash, email_verified, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
     [id, email, input.name ?? null, passwordHash, false],
   );
 

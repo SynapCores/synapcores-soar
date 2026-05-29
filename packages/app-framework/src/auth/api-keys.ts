@@ -31,8 +31,8 @@ export async function mintApiKey(opts: {
   const hash = await bcrypt.hash(plaintext, 12);
   const db = getAdminClient();
   await db.sql(
-    `INSERT INTO api_keys (id, tenant_id, user_id, label, key_hash, key_prefix)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
+    `INSERT INTO api_keys (id, tenant_id, user_id, label, key_hash, key_prefix, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
     [id, opts.tenantId, opts.userId, opts.label, hash, plaintext.slice(0, 12)],
   );
   return {

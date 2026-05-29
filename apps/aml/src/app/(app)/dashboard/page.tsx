@@ -5,22 +5,37 @@ import {
   CardHeader,
   CardTitle,
 } from '@synapcores/app-framework';
-import { Activity, AlertCircle, FileLock2, Users } from 'lucide-react';
+import { Activity, AlertCircle, FileLock2, ShieldAlert } from 'lucide-react';
 import { requireSession } from '@/lib/session';
+import { transactionCounts } from '@/lib/aml-transactions';
 
-/**
- * AML landing dashboard. Phase 1 ships the shell; Phase 2 wires
- * live counts (open transactions, alerts in review, SAR drafts,
- * sanctions hits).
- */
 export default async function DashboardPage() {
   const session = await requireSession();
+  if (!session.tenant) return null;
+
+  const counts = await transactionCounts(session.tenant.id);
 
   const stats = [
-    { label: 'Transactions monitored', value: '—', icon: <Activity className="h-5 w-5 text-primary" /> },
-    { label: 'Open cases', value: '—', icon: <AlertCircle className="h-5 w-5 text-primary" /> },
-    { label: 'SAR drafts', value: '—', icon: <FileLock2 className="h-5 w-5 text-primary" /> },
-    { label: 'Analysts online', value: '—', icon: <Users className="h-5 w-5 text-primary" /> },
+    {
+      label: 'Transactions monitored',
+      value: counts.total,
+      icon: <Activity className="h-5 w-5 text-primary" />,
+    },
+    {
+      label: 'SAR candidates',
+      value: counts.sar_candidate,
+      icon: <ShieldAlert className="h-5 w-5 text-primary" />,
+    },
+    {
+      label: 'Triaged',
+      value: counts.triaged,
+      icon: <AlertCircle className="h-5 w-5 text-primary" />,
+    },
+    {
+      label: 'Auto-deduped',
+      value: counts.duplicate,
+      icon: <FileLock2 className="h-5 w-5 text-primary" />,
+    },
   ];
 
   return (
@@ -52,15 +67,31 @@ export default async function DashboardPage() {
         <CardHeader>
           <CardTitle>Get started</CardTitle>
           <CardDescription>
-            Phase 1 ships the auth + tenancy + framework UI shell. Phase 2
-            wires the transaction-monitoring webhook at{' '}
-            <code className="text-primary">/api/v1/aml/transactions</code> +
-            structuring detection + the cases UI. Phase 3 wires the SAR-
-            drafter agent.
+            Wire your core banking / payment rail to{' '}
+            <code className="text-primary">/api/v1/aml/transactions</code> with
+            a Bearer key from{' '}
+            <a href="/settings/api-keys" className="text-primary hover:underline">
+              /settings/api-keys
+            </a>
+            . Structuring / velocity / cross-border-cash auto-flag for triage.
           </CardDescription>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">
-          You&apos;re looking at the AML Phase 1 framework shell.
+          {counts.sar_candidate > 0 ? (
+            <>
+              You have{' '}
+              <a
+                href="/cases"
+                className="text-foreground font-semibold hover:text-primary"
+              >
+                {counts.sar_candidate} SAR candidate
+                {counts.sar_candidate === 1 ? '' : 's'}
+              </a>{' '}
+              to review.
+            </>
+          ) : (
+            'No SAR candidates yet.'
+          )}
         </CardContent>
       </Card>
     </div>

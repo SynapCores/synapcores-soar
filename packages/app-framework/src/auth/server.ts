@@ -215,14 +215,16 @@ async function resolveFrameworkSession(
   if (!userRow) return null;
 
   // memberships (most recent first)
-  // CE engine note: JOINs across multiple tables are unreliable. We do
-  // the two-step lookup explicitly (N+1 — acceptable since N is small
-  // for any one user and this lives behind session cache).
+  // CE engine notes:
+  //  - JOINs across multiple tables are unreliable. We do the two-step
+  //    lookup explicitly (N+1 — acceptable since N is small).
+  //  - ORDER BY requires the column to also appear in the SELECT.
   const memResult = await db.sql<{
     tenant_id: string;
     role: string;
+    created_at: string;
   }>(
-    `SELECT tenant_id, role
+    `SELECT tenant_id, role, created_at
        FROM memberships
       WHERE user_id = $1
       ORDER BY created_at DESC`,

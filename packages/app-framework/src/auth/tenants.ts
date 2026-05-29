@@ -68,15 +68,18 @@ export async function createTenant(input: CreateTenantInput): Promise<TenantInfo
   const apiKey = mintApiKey();
   const apiKeyHash = await bcrypt.hash(apiKey, 12);
 
+  // CE engine quirk: DEFAULT NOW() doesn't reliably auto-populate.
+  // Pass timestamps explicitly to keep ingest deterministic.
   await db.sql(
-    `INSERT INTO tenants (id, name, slug, api_key_hash, api_key_prefix)
-     VALUES ($1, $2, $3, $4, $5)`,
+    `INSERT INTO tenants (id, name, slug, api_key_hash, api_key_prefix, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
     [id, name, slug, apiKeyHash, apiKey.slice(0, 8)],
   );
 
   // Owner membership
   await db.sql(
-    `INSERT INTO memberships (user_id, tenant_id, role) VALUES ($1, $2, 'owner')`,
+    `INSERT INTO memberships (user_id, tenant_id, role, created_at)
+     VALUES ($1, $2, 'owner', NOW())`,
     [input.ownerUserId, id],
   );
 
