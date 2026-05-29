@@ -138,6 +138,70 @@ CREATE TABLE IF NOT EXISTS soar_threat_intel (
 CREATE INDEX IF NOT EXISTS idx_soar_threat_intel_tenant_value
   ON soar_threat_intel(tenant_id, ioc_value);
 
+-- Per-tenant integration configurations. BYO credentials for the
+-- external systems we dispatch actions to + ingest alerts from.
+-- The secret_payload column holds JSON keyed by provider-specific
+-- shapes (e.g. {"api_token":"sk_..."} for CrowdStrike). It is stored
+-- encrypted at rest by the engine when the column type supports it,
+-- or framework-encrypted before INSERT in production.
+CREATE TABLE IF NOT EXISTS soar_integrations (
+  id            TEXT PRIMARY KEY,
+  tenant_id     TEXT NOT NULL,
+  provider      TEXT NOT NULL,              -- 'crowdstrike' | 'okta' | 'slack' | 'servicenow' | ...
+  label         TEXT NOT NULL,              -- humanly readable, e.g. "Acme Bank prod tenant"
+  secret_payload JSON,                      -- provider-specific credentials + config
+  enabled       BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at    TIMESTAMP NOT NULL,
+  updated_at    TIMESTAMP NOT NULL,
+  last_used_at  TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_soar_integrations_tenant
+  ON soar_integrations(tenant_id, provider);
+
+-- Action dispatch ledger. Every action the action layer attempts —
+-- regardless of HBR gating — writes a row here for traceability.
+-- soar_audit_log records the high-level event; this table holds the
+-- request/response shape so analysts can re-run from a known-good
+-- input.
+CREATE TABLE IF NOT EXISTS soar_actions (
+  id           TEXT PRIMARY KEY,
+  tenant_id    TEXT NOT NULL,
+  incident_id  TEXT,                        -- nullable; ad-hoc actions
+  alert_id     TEXT,
+  action       TEXT NOT NULL,               -- 'isolate_endpoint' | 'disable_user' | ...
+  target       TEXT,                        -- '<asset_id>' | '<identity_id>' | URL etc.
+  request_payload  JSON,
+  response_payload JSON,
+  state        TEXT NOT NULL,               -- 'pending' | 'awaiting_approval' | 'running' | 'completed' | 'failed' | 'rejected'
+  requested_by TEXT NOT NULL,               -- user_id or agent name
+  requested_at TIMESTAMP NOT NULL,
+  completed_at TIMESTAMP,
+  error_message TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_soar_actions_tenant_state
+  ON soar_actions(tenant_id, state, requested_at);
+
+-- Approval queue — actions waiting on human go/no-go. The action layer
+-- (Phase 6) writes here on HBR; the analyst resolves at /approvals
+-- (Phase 7). Each row references the originating soar_actions row.
+CREATE TABLE IF NOT EXISTS soar_approval_queue (
+  id           TEXT PRIMARY KEY,
+  tenant_id    TEXT NOT NULL,
+  action_id    TEXT NOT NULL,
+  requested_by TEXT NOT NULL,
+  requested_at TIMESTAMP NOT NULL,
+  state        TEXT NOT NULL,               -- 'pending' | 'approved' | 'rejected' | 'expired'
+  decided_by   TEXT,
+  decided_at   TIMESTAMP,
+  decision_note TEXT,
+  expires_at   TIMESTAMP NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_soar_approval_queue_tenant_state
+  ON soar_approval_queue(tenant_id, state, requested_at);
+
 -- SOAR-domain audit log — IMMUTABLE. Every agent tool call, every
 -- analyst action, every alert state change writes here. This is what
 -- VERIFY_CHAIN runs against for the SOC 2 audit story.
