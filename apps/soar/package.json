@@ -9,6 +9,7 @@
     "build": "next build",
     "start": "next start --port 3001",
     "bootstrap": "node ./bin/bootstrap.mjs",
+    "seed-demo": "node ./bin/seed-demo.mjs",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
   },
