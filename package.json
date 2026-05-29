@@ -12,9 +12,12 @@
     "typecheck": "pnpm -r typecheck",
     "framework:bootstrap": "pnpm --filter @synapcores/app-framework bootstrap",
     "soar:bootstrap": "pnpm --filter @synapcores/soar bootstrap",
-    "bootstrap": "pnpm framework:bootstrap && pnpm soar:bootstrap",
+    "aml:bootstrap": "pnpm --filter @synapcores/aml bootstrap",
+    "bootstrap": "pnpm framework:bootstrap && pnpm soar:bootstrap && pnpm aml:bootstrap",
     "soar:dev": "pnpm --filter @synapcores/soar dev",
-    "soar:build": "pnpm --filter @synapcores/soar build"
+    "soar:build": "pnpm --filter @synapcores/soar build",
+    "aml:dev": "pnpm --filter @synapcores/aml dev",
+    "aml:build": "pnpm --filter @synapcores/aml build"
   },
   "engines": {
     "node": ">=20",
