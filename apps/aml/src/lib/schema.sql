@@ -158,6 +158,61 @@ CREATE TABLE IF NOT EXISTS aml_sars (
 CREATE INDEX IF NOT EXISTS idx_aml_sars_tenant_status
   ON aml_sars(tenant_id, status, created_at);
 
+-- Per-tenant integration configurations (adapter credentials + connector
+-- tokens, same shape as SOAR's soar_integrations).
+CREATE TABLE IF NOT EXISTS aml_integrations (
+  id              TEXT PRIMARY KEY,
+  tenant_id       TEXT NOT NULL,
+  provider        TEXT NOT NULL,
+  label           TEXT NOT NULL,
+  secret_payload  JSON,
+  enabled         BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at      TIMESTAMP NOT NULL,
+  updated_at      TIMESTAMP NOT NULL,
+  last_used_at    TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_aml_integrations_tenant
+  ON aml_integrations(tenant_id, provider);
+
+-- Action dispatch ledger
+CREATE TABLE IF NOT EXISTS aml_actions (
+  id              TEXT PRIMARY KEY,
+  tenant_id       TEXT NOT NULL,
+  case_id         TEXT,
+  transaction_id  TEXT,
+  sar_id          TEXT,
+  action          TEXT NOT NULL,
+  target          TEXT,
+  request_payload  JSON,
+  response_payload JSON,
+  state           TEXT NOT NULL,
+  requested_by    TEXT NOT NULL,
+  requested_at    TIMESTAMP NOT NULL,
+  completed_at    TIMESTAMP,
+  error_message   TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_aml_actions_tenant_state
+  ON aml_actions(tenant_id, state, requested_at);
+
+-- Approval queue for HBR actions (file_sar, freeze_account, ...)
+CREATE TABLE IF NOT EXISTS aml_approval_queue (
+  id              TEXT PRIMARY KEY,
+  tenant_id       TEXT NOT NULL,
+  action_id       TEXT NOT NULL,
+  requested_by    TEXT NOT NULL,
+  requested_at    TIMESTAMP NOT NULL,
+  state           TEXT NOT NULL,
+  decided_by      TEXT,
+  decided_at      TIMESTAMP,
+  decision_note   TEXT,
+  expires_at      TIMESTAMP NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_aml_approval_queue_tenant_state
+  ON aml_approval_queue(tenant_id, state, requested_at);
+
 -- AML-domain immutable audit log
 CREATE IMMUTABLE TABLE IF NOT EXISTS aml_audit_log (
   event_id    INTEGER PRIMARY KEY,
