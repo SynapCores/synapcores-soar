@@ -1,30 +1,32 @@
 version: '3.9'
 
 # ─────────────────────────────────────────────────────────────────────────
-# SynapCores SOAR — full stack (engine + app)
+# SynapCores apps — full stack (engine + SOAR + AML)
 #
 # Quickstart:
-#   1. cp apps/soar/.env.example apps/soar/.env
-#   2. docker compose up -d
-#   3. Get the admin password from the engine log:
-#        docker compose logs synapcores | grep "password:"
-#   4. Open http://localhost:3001/register
+#   1. cp .env.example .env
+#   2. docker compose up -d synapcores
+#   3. Get the admin password:  docker compose logs synapcores | grep "password:"
+#   4. Log into engine UI at :28080, mint admin API token, paste into .env
+#   5. docker compose up -d
+#   6. SOAR at http://localhost:3001/register
+#      AML  at http://localhost:3003/register
 #
-# The engine holds all SOAR data (alerts, incidents, audit, integrations).
-# The app is stateless; you can `docker compose restart soar` any time.
+# Both apps share the same SynapCores engine but live in separate tenants —
+# pick which one(s) to expose by commenting services out.
 # ─────────────────────────────────────────────────────────────────────────
 
 services:
   synapcores:
     image: synapcores/community:v1.7.0.1-ce
-    container_name: synapcores-soar-engine
+    container_name: synapcores-engine
     environment:
       AIDB_ACCEPT_LICENSE: '1'
       AIDB_JWT_SECRET: ${AIDB_JWT_SECRET:?Set AIDB_JWT_SECRET in .env}
     ports:
       - '28080:8080'
     volumes:
-      - sc-soar-data:/var/lib/synapcores
+      - sc-engine-data:/var/lib/synapcores
     healthcheck:
       test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:8080/health']
       interval: 10s
@@ -47,13 +49,11 @@ services:
       SYNAPCORES_ADMIN_API_KEY: ${SYNAPCORES_ADMIN_API_KEY:?Set SYNAPCORES_ADMIN_API_KEY in .env}
       FRAMEWORK_TENANT_KEYS_DIR: /var/synapcores/tenant-keys
       AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in .env}
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3001}
+      NEXTAUTH_URL: ${SOAR_NEXTAUTH_URL:-http://localhost:3001}
       MAIL_PROVIDER: ${MAIL_PROVIDER:-console}
       SOAR_TRIAGE_MODE: ${SOAR_TRIAGE_MODE:-auto}
     ports:
       - '3001:3001'
-    # First-boot: install + bootstrap framework + SOAR schema, then dev
-    # (production deploys use `pnpm build && pnpm start`).
     command: >
       sh -c "
         corepack enable && corepack prepare pnpm@9 --activate &&
@@ -64,6 +64,38 @@ services:
       "
     restart: unless-stopped
 
+  aml:
+    image: node:22-alpine
+    container_name: synapcores-aml-app
+    depends_on:
+      synapcores:
+        condition: service_healthy
+    working_dir: /app
+    volumes:
+      - ./:/app
+      - sc-aml-app-cache:/app/.next
+    environment:
+      SYNAPCORES_URL: http://synapcores:8080
+      SYNAPCORES_ADMIN_API_KEY: ${SYNAPCORES_ADMIN_API_KEY:?Set SYNAPCORES_ADMIN_API_KEY in .env}
+      FRAMEWORK_TENANT_KEYS_DIR: /var/synapcores/tenant-keys
+      AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in .env}
+      NEXTAUTH_URL: ${AML_NEXTAUTH_URL:-http://localhost:3003}
+      MAIL_PROVIDER: ${MAIL_PROVIDER:-console}
+      AML_TRIAGE_MODE: ${AML_TRIAGE_MODE:-auto}
+      AML_DEFAULT_JURISDICTION: ${AML_DEFAULT_JURISDICTION:-us-fincen}
+    ports:
+      - '3003:3003'
+    command: >
+      sh -c "
+        corepack enable && corepack prepare pnpm@9 --activate &&
+        pnpm install --frozen-lockfile &&
+        pnpm framework:bootstrap &&
+        pnpm aml:bootstrap &&
+        pnpm aml:dev
+      "
+    restart: unless-stopped
+
 volumes:
-  sc-soar-data:
+  sc-engine-data:
   sc-soar-app-cache:
+  sc-aml-app-cache:
