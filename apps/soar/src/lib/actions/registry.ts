@@ -93,6 +93,67 @@ const blockIpAction: ActionDef<{ ip: string; note?: string }> = {
   adapters: [cloudflareBlockIpAdapter],
 };
 
+// ─── v0.2.0 actions (SOAR Demo Completion Req 7) ─────────────────────────
+
+const rollbackDeploymentAction: ActionDef<{ deployment_id: string; reason?: string }> = {
+  id: 'rollback_deployment',
+  description: 'Revert a deployment to the previously-known-good version.',
+  schema: z.object({
+    deployment_id: z.string().min(1),
+    reason: z.string().max(500).optional(),
+  }),
+  hbr: true,
+  adapters: [], // wired by per-tenant integrations (GitHub/Argo/Spinnaker)
+};
+
+const attachEvidencePackAction: ActionDef<{
+  incident_id: string;
+  artefact_count?: number;
+}> = {
+  id: 'attach_evidence_pack',
+  description:
+    'Assemble alerts + audit-slice + transaction timeline as a tamper-evident pack.',
+  schema: z.object({
+    incident_id: z.string().min(1),
+    artefact_count: z.number().int().positive().optional(),
+  }),
+  hbr: false,
+  adapters: [], // handled in-process by evidence-collector persona
+};
+
+const closeIncidentAction: ActionDef<{
+  incident_id: string;
+  final_root_cause: string;
+  final_resolution: string;
+  status: 'true_positive' | 'false_positive' | 'inconclusive';
+}> = {
+  id: 'close_incident',
+  description:
+    'Close the incident, save final state as future memory (closed-loop learning).',
+  schema: z.object({
+    incident_id: z.string().min(1),
+    final_root_cause: z.string().min(1),
+    final_resolution: z.string().min(1),
+    status: z.enum(['true_positive', 'false_positive', 'inconclusive']),
+  }),
+  hbr: false,
+  adapters: [], // handled in-process by ../learning/close-incident.ts
+};
+
+const markRelatedAlertsAction: ActionDef<{
+  incident_id: string;
+  alert_ids: string[];
+}> = {
+  id: 'mark_related_alerts',
+  description: 'Link a set of alerts to an existing incident.',
+  schema: z.object({
+    incident_id: z.string().min(1),
+    alert_ids: z.array(z.string()).min(1),
+  }),
+  hbr: false,
+  adapters: [], // handled in-process
+};
+
 // ─── Registry ────────────────────────────────────────────────────────────
 
 export const ACTIONS: Record<string, ActionDef<unknown>> = {
@@ -102,6 +163,11 @@ export const ACTIONS: Record<string, ActionDef<unknown>> = {
   revoke_sessions: revokeSessionsAction as ActionDef<unknown>,
   isolate_endpoint: isolateEndpointAction as ActionDef<unknown>,
   block_ip: blockIpAction as ActionDef<unknown>,
+  // v0.2.0 additions
+  rollback_deployment: rollbackDeploymentAction as ActionDef<unknown>,
+  attach_evidence_pack: attachEvidencePackAction as ActionDef<unknown>,
+  close_incident: closeIncidentAction as ActionDef<unknown>,
+  mark_related_alerts: markRelatedAlertsAction as ActionDef<unknown>,
 };
 
 export function listActionIds(): string[] {
