@@ -10,7 +10,7 @@ demo.
 |---|---|---|---|
 | 1 | Ingestion Capability Matrix | ✅ Documented | `docs/CAPABILITY_MATRIX.md` |
 | 2 | Demo Event Simulator | ✅ Shipped | `src/lib/simulator/` |
-| 3 | Incident Knowledge Graph | 🟡 SQL projection ships, Cypher-via-SQL pending engine #223 | `src/lib/v0_2_0_migration.sql` |
+| 3 | Incident Knowledge Graph | ✅ **30/30 live-verified** — 14 nodes + 13 relationships + multi-hop traversals (engine #223 + #235 fixes landed) | `src/lib/v0_2_0_migration.sql` + `docs/REQ3_GRAPH_VALIDATION.md` |
 | 4 | Similar Incident Retrieval | ✅ Shipped (vector + entity Jaccard + sequence Jaccard) | `src/lib/learning/similar.ts` |
 | 5 | Agent RCA | ✅ `rca-analyst` persona shipped | `src/lib/personas.ts` |
 | 6 | Human-in-the-Loop Action Gate | ✅ Existing approval queue + new auto-approve allowlist | `src/lib/actions/approvals.ts` |
@@ -85,19 +85,20 @@ pnpm --filter @synapcores/soar simulator:run \
 
 These are **documented as gaps**, not silently worked around:
 
-### Gap 1 — Cypher graph queries via SQL endpoint (#223)
+### Gap 1 — Cypher graph queries via SQL endpoint (#223 + #235) — RESOLVED 2026-05-31
 
-**Issue:** `MATCH (n) RETURN n` via `/v1/query/execute` errors with
-*"Cypher execution requires a graph backend on ExecutionContext"*.
-Engine bug #223 — the SQL execution context never attaches the graph
-backend. Affects every deployment shape, not docker-specific.
+**Original issue:** `MATCH (n) RETURN n` via `/v1/query/execute` errored
+with *"Cypher execution requires a graph backend on ExecutionContext"*.
 
-**Workaround:** The SOAR graph layer uses the dedicated
-`/v2/graph/*` REST endpoints (which DO wire the backend per-request).
-The recipe text + graph projection in v0.2.0 uses those endpoints.
+**Status (2026-05-31):** ✅ **CLOSED.** Engine pass-3 attached
+`graph_backend` for explicit Cypher (MATCH/MERGE/UNWIND/CREATE-pattern),
+and engine pass-7 fixed the over-permissive Cypher-detector at
+`parser.rs:475` (#235) so SQL `UNION` no longer mis-routes to the
+Cypher executor.
 
-**When #223 lands:** the Cypher-in-SQL examples in our docs become
-runnable as published; no SOAR app code change required.
+**Live verification:** see `docs/REQ3_GRAPH_VALIDATION.md` — 14 node
+types + 13 relationship types + 3 multi-hop traversals, all green via
+`/v1/query/execute` against the v1.7.0.2-ce-pass7 binary.
 
 ### Gap 2 — Inline AUTOML.PREDICT inside arithmetic/aggregate (#232)
 
