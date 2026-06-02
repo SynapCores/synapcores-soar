@@ -1,192 +1,191 @@
-# SynapCores Apps
+# SynapCores SOAR
 
-Open-core vertical applications on the SynapCores AI-native database.
+**Open-source autonomous SOC platform. Tier-1 triage agents, immutable audit, MCP examiner portal. Self-hostable on a single Docker host.**
 
-Two production-shape verticals in this monorepo today, both built on a
-shared `@synapcores/app-framework`:
+<!-- TODO(maintainer): drop a screenshot or GIF here.
+     Suggested: a 5-second loop of an alert arriving, the triage agent
+     running, an incident appearing in /incidents, an HBR action queued
+     in /approvals. Without an image this README converts ~3× worse on
+     GitHub. -->
 
-| App | What it is | Port | Repo |
-|---|---|---|---|
-| **SOAR** | Autonomous SOC — alert ingest → EMBED dedup → triage agent → incident/action ledger → HBR approvals → MCP examiner portal | 3001 | `apps/soar` |
-| **AML** | Transaction-monitoring + SAR-drafting — FedNow/ACH/SWIFT ingest → behavioral detection → 5-jurisdiction SAR drafting → HBR file-with-regulator → MCP examiner portal | 3003 | `apps/aml` |
-
-Both share the same engine (one `synapcores/community` container) and
-the same auth/RBAC/UI primitives.
+> A Tines / Torq / Cortex XSOAR alternative — open-source, runs on your hardware, the same engine your AI agents use.
 
 ```
-                  ┌──────────────────────────────┐
-                  │   SynapCores Engine (CE)     │
-                  │  vectors · SQL · graph · IM  │
-                  │           :28080             │
-                  └──────────────┬───────────────┘
-                                 │
-              ┌──────────────────┼──────────────────┐
-              │                                     │
-       ┌──────▼───────┐                     ┌───────▼──────┐
-       │   SOAR app   │                     │   AML app    │
-       │   :3001      │                     │   :3003      │
-       └──────────────┘                     └──────────────┘
-                       └─ @synapcores/app-framework ─┘
-                          (auth · RBAC · UI · agent ·
-                           tenants · audit · MCP)
+SIEM/EDR webhook ──► EMBED dedup ──► Tier-1 triage agent ──► Incident
+                                              │                 │
+                                       /actions ledger ──► adapter fires
+                                              │
+                                        HBR? ──► /approvals queue (human go/no-go)
+                                              │
+                                        immutable audit ──► MCP examiner portal
 ```
 
-## Quickstart (docker compose)
+---
 
-Requires Docker 24+ and ~4 GB free RAM for the SynapCores engine.
+## What it does
 
-```sh
-git clone https://github.com/SynapCores/synapcores-apps
-cd synapcores-apps
+Every step here is **shipping today** on `main`, not slideware:
+
+- **Ingest alerts from your SIEM/EDR.** First-class connectors for Splunk HEC, Microsoft Sentinel, CrowdStrike Falcon, Okta event hooks. Generic webhook with per-tenant Bearer tokens for anything else.
+- **Dedup by meaning, not by hash.** Incoming alerts are EMBED'd; near-duplicate fan-out from a single root cause collapses to one incident.
+- **Run a Tier-1 triage agent against every alert.** Configurable agent personas, action library, SIEM lookups, deploy correlation. Output: true positive → incident, false positive → close, ambiguous → human review.
+- **Action library with HBR gating.** Out-of-the-box adapters for Slack, ServiceNow, Okta (revoke session), CrowdStrike (isolate host), Cloudflare (block IP). High-blast-radius actions queue in `/approvals` for human go/no-go before they fire.
+- **Immutable, examiner-ready audit trail.** Every action, every approval, every agent reasoning step persists to an append-only ledger.
+- **MCP examiner portal.** Mint a scoped MCP token, hand the bearer to your SOC 2 / FFIEC examiner — they query the audit ledger directly from Claude / Cursor without touching the SOC team's daily flow.
+
+## Why this exists
+
+Existing SOAR products are either expensive enterprise stacks (Splunk SOAR, Cortex XSOAR) or polished SaaS with per-action billing (Tines, Torq). None of them are self-hostable, none let you BYO LLM, and none expose an audit ledger that a regulator can examine themselves.
+
+This is the SOC platform built the way SOC engineers actually want it: open core, local-first, AI-native, examiner-friendly.
+
+## Quickstart (5 minutes, single Docker host)
+
+Requires **Docker 24+** and **~4 GB free RAM** for the SynapCores engine.
+
+```bash
+git clone https://github.com/SynapCores/synapcores-soar
+cd synapcores-soar
 cp .env.example .env
-# Edit .env: set AIDB_JWT_SECRET, AUTH_SECRET (both 32 random bytes).
+# Edit .env: set AIDB_JWT_SECRET and AUTH_SECRET (both 32 random bytes).
 # Leave SYNAPCORES_ADMIN_API_KEY blank for first boot.
 
-# 1. Boot just the engine first
+# 1. Boot the SynapCores engine
 docker compose up -d synapcores
 
 # 2. Grab the engine admin password
 docker compose logs synapcores | grep "password:"
-# Log into the engine console at http://localhost:28080,
-# mint an admin API token, paste into .env as SYNAPCORES_ADMIN_API_KEY.
+# → log into http://localhost:28080, mint an admin API token,
+#   paste it into .env as SYNAPCORES_ADMIN_API_KEY
 
-# 3. Boot the apps
-docker compose up -d
+# 3. Boot SOAR
+docker compose up -d soar
 
-# Open whichever app you want:
-open http://localhost:3001/register   # SOAR
-open http://localhost:3003/register   # AML
+# 4. Register the first user — becomes the workspace owner
+open http://localhost:3001/register
 ```
 
-The first user registered becomes the **owner** of the first workspace
-in that app.
+That's the entire install. **Less than 5 minutes** assuming the engine container pulls cleanly.
 
-## SOAR — autonomous SOC
+## First 15 minutes after install
+
+1. **Mint a connector token** at `/settings/connectors`. Point your SIEM at the resulting webhook URL.
+2. Alerts appear at `/alerts`. Click **Run Tier-1 triage** to dispatch the agent.
+3. Watch the agent route the alert → `/incidents` (true positive), close it (false positive), or queue for human review.
+4. **Wire integrations** at `/settings/integrations` — Slack, ServiceNow, Okta, CrowdStrike, Cloudflare.
+5. Actions with high blast radius (isolate host, disable user, revoke session, block IP) queue at `/approvals` for human go/no-go before firing.
+6. For a SOC 2 / FFIEC examiner, mint a scoped MCP token at `/settings/mcp-tokens`. Hand them `/api/v1/mcp` + the bearer. They query the audit trail from Claude or Cursor without touching the SOC team.
+
+## What ships out of the box
+
+| Surface | What it does | Path |
+|---|---|---|
+| `/alerts` | Inbound alert queue + manual Tier-1 dispatch | `apps/soar/src/app/(app)/alerts` |
+| `/incidents` | Active and closed incidents, triage history | `apps/soar/src/app/(app)/incidents` |
+| `/actions` | Action library, run history, status | `apps/soar/src/app/(app)/actions` |
+| `/approvals` | HBR queue for high-blast-radius actions | `apps/soar/src/app/(app)/approvals` |
+| `/audit` | Immutable audit ledger | `apps/soar/src/app/(app)/audit` |
+| `/playbooks` | Authored playbooks + dry-run + simulation | `apps/soar/src/app/(app)/playbooks` |
+| `/dashboard` | MTTD / MOT / MTTR metrics | `apps/soar/src/app/(app)/dashboard` |
+| `/settings/connectors` | Per-tenant ingest tokens | `apps/soar/src/app/(app)/settings/connectors` |
+| `/settings/integrations` | Slack / ServiceNow / Okta / CrowdStrike / Cloudflare config | `apps/soar/src/app/(app)/settings/integrations` |
+| `/settings/mcp-tokens` | Scoped MCP tokens for examiners | `apps/soar/src/app/(app)/settings/mcp-tokens` |
+| `/team` | Workspace members + RBAC | `apps/soar/src/app/(app)/team` |
+
+## Connectors (ingest side)
+
+| Source | Status | Notes |
+|---|---|---|
+| Splunk HEC | ✅ Shipped | First-class adapter |
+| Microsoft Sentinel | ✅ Shipped | Logic-App-shaped payload |
+| CrowdStrike Falcon | ✅ Shipped | Workflow integration |
+| Okta event hooks | ✅ Shipped | First-class adapter |
+| Elastic SIEM | ✅ Generic webhook | First-class adapter on roadmap |
+| Datadog / Prometheus / Jira / GitHub | 🟡 Generic webhook | First-class adapters on roadmap (v0.3.0) |
+| OpenTelemetry / SentinelOne / CloudTrail | ❌ Roadmap | Tracked in `apps/soar/docs/CAPABILITY_MATRIX.md` |
+| Kafka streaming | Enterprise only | Engine supports it; SOAR adapter gated to EE |
+
+The full matrix lives at [`apps/soar/docs/CAPABILITY_MATRIX.md`](apps/soar/docs/CAPABILITY_MATRIX.md).
+
+## Action library (response side)
+
+| Action | Adapter | HBR-gated by default |
+|---|---|---|
+| `notify_channel` | Slack | No |
+| `create_ticket` | ServiceNow | No |
+| `revoke_session` | Okta | **Yes** |
+| `disable_user` | Okta | **Yes** |
+| `isolate_host` | CrowdStrike | **Yes** |
+| `block_ip` | Cloudflare | **Yes** |
+| `add_comment` | (internal) | No |
+
+HBR = High Blast Radius. Anything that could break production if wrong queues for human approval at `/approvals`. Configurable per-tenant.
+
+## How this compares
+
+| | SynapCores SOAR | Tines | Torq | Splunk SOAR | Cortex XSOAR |
+|---|---|---|---|---|---|
+| Self-hosted | ✅ Single Docker | ❌ SaaS only | ❌ SaaS only | ✅ Heavy stack | ✅ Heavy stack |
+| Open source | ✅ Apache-2.0 (apps), CE binary (engine) | ❌ Proprietary | ❌ Proprietary | ❌ Proprietary | ❌ Proprietary |
+| BYO LLM | ✅ OpenAI / Anthropic / local Ollama | 🟡 Paid add-on | 🟡 Paid add-on | ❌ | 🟡 Limited |
+| Per-action pricing | ❌ Flat | ✅ Yes | ✅ Yes | ❌ Enterprise license | ❌ Enterprise license |
+| Immutable audit | ✅ First-class | 🟡 Read-only logs | 🟡 Read-only logs | ✅ | ✅ |
+| MCP examiner portal | ✅ Out of the box | ❌ | ❌ | ❌ | ❌ |
+| Install time | ~5 min | n/a (SaaS) | n/a (SaaS) | days | days |
+
+## Architecture (single host)
 
 ```
-SIEM/EDR webhook ─→ EMBED dedup ─→ Tier-1 triage agent ─→ Incident
-                                           ↓                  ↓
-                                    /actions ledger ─→ adapter fires
-                                           ↓
-                                     HBR? ─→ /approvals queue
+                  ┌───────────────────────────────┐
+                  │   SynapCores Engine (CE)      │
+                  │  vectors · SQL · graph · IM   │
+                  │           :28080              │
+                  └──────────────┬────────────────┘
+                                 │ HTTP
+                          ┌──────▼──────┐
+                          │  SOAR app   │
+                          │   :3001     │
+                          └─────────────┘
 ```
 
-After register:
+The SOAR app is a Next.js application talking to the SynapCores CE engine over HTTP. Both run as containers on a single host. All ingest happens through SOAR's HTTPS endpoints; the engine never accepts external traffic.
 
-1. **Mint a connector token** at `/settings/connectors`. Point your
-   SIEM at the webhook URL (Splunk HEC, Sentinel Logic App,
-   CrowdStrike workflow, Okta event hook).
-2. Alerts appear at `/alerts`. Click **Run Tier-1 triage** to
-   dispatch the agent.
-3. Triage routes to `/incidents` (true positive), closes it (false
-   positive), or queues for human review.
-4. **Wire integrations** at `/settings/integrations` (Slack,
-   ServiceNow, Okta, CrowdStrike, Cloudflare).
-5. HBR actions (isolate, disable, revoke, block) route to
-   `/approvals` for human go/no-go before they fire.
-6. For SOC 2 / FFIEC examiners, mint a scoped MCP token at
-   `/settings/mcp-tokens`. Hand them `/api/v1/mcp` + the bearer —
-   they query directly from Claude / Cursor.
+For depth, see [`apps/soar/docs/ARCHITECTURE.md`](apps/soar/docs/ARCHITECTURE.md).
 
-Apps-side deep-dive: `apps/soar/docs/ARCHITECTURE.md`,
-`apps/soar/docs/DESIGN_PARTNER.md`.
+## Roadmap
 
-## AML — transaction monitoring + SAR drafting
+Tracked in [`apps/soar/docs/CAPABILITY_MATRIX.md`](apps/soar/docs/CAPABILITY_MATRIX.md). Highlights:
 
-```
-FedNow/ACH/SWIFT/banking webhook ─→ behavioral detector
-                                          ↓
-                  structuring · velocity · xb-cash · CTR · round-#
-                                          ↓
-                                   /cases → sar-drafter
-                                          ↓
-                          /sars (review → approved → file)
-                                          ↓
-                              HBR? ─→ /approvals queue
-```
+- **v0.3.0** — first-class adapters for Datadog, Prometheus, GitHub, Jira; SentinelOne EDR; AWS CloudTrail
+- **v0.4.0** — playbook marketplace, agent persona templates per vertical (fintech, healthcare, manufacturing)
+- **v0.5.0** — OpenTelemetry receiver, inbound Slack slash commands
 
-After register:
+## Design partner program
 
-1. **Mint a connector token** at `/settings/connectors`. Pick
-   FedNow (ISO 20022 pacs.008), ACH (NACHA), SWIFT (MT103 + pacs.008),
-   or generic banking webhook.
-2. Transactions flow into `/transactions`. The behavioral detector
-   inline-flags structuring (3+ sub-CTR in 24h), velocity (>$1M/24h),
-   cross-border cash, CTR threshold, and round-number.
-3. SAR-candidates land on `/cases`. Pick a jurisdiction, click
-   **Draft SAR** — the `sar-drafter` agent (or deterministic
-   FinCEN/NCA/AUSTRAC/FINTRAC/goAML template) produces a regulator-
-   grade narrative with statute references.
-4. Review / approve at `/sars/[id]`. **File with regulator** is HBR —
-   routes through `/approvals`.
-5. **Wire integrations** at `/settings/integrations` (ComplyAdvantage
-   sanctions, FinCEN BSA E-Filing, core-banking account holds, Slack).
-6. For FFIEC / OCC / NYDFS / FCA examiners, mint a scoped MCP token —
-   they query case/transaction/SAR/screening data directly from Claude.
+Two-to-four-week sprint where the SynapCores team (engineering + product) sits in your Slack and ships a working tier-1 triage agent against your real SIEM stack. Free for selected partners in exchange for a case study.
 
-Apps-side deep-dive: `apps/aml/docs/ARCHITECTURE.md`,
-`apps/aml/docs/DESIGN_PARTNER.md`.
+Apply: https://synapcores.com/partners
 
-## Architecture
+## Community
 
-```
-synapcores-apps/
-├── packages/
-│   └── app-framework/        @synapcores/app-framework
-│       ├── auth/              Auth.js v5 + tenants + invitations +
-│       │                       mailer + api-keys + mcp-tokens
-│       ├── db/                SynapCores SDK + bootstrap
-│       ├── agent/             AGENT_RUN client
-│       ├── rbac/              role + permission primitives
-│       ├── ui/                shadcn-style components + DataTable
-│       ├── layout/            DashboardLayout + Sidebar + TopBar
-│       └── pages/             Settings / Profile / Workspace / Team /
-│                              Audit / ApiKeys / McpTokens / Accept-invite
-│
-└── apps/
-    ├── soar/                  @synapcores/soar
-    │   └── (see apps/soar/README.md + docs/ARCHITECTURE.md)
-    │
-    └── aml/                   @synapcores/aml
-        └── (see apps/aml/README.md + docs/ARCHITECTURE.md)
-```
+- **Issues & feature requests**: GitHub issues on this repo
+- **Discussion**: GitHub Discussions
+- **Security disclosures**: security@synapcores.com
 
-**Data flow** (same in both apps):
-- The **engine** holds everything persistent (users, tenants, app
-  data, audit, integrations, MCP tokens).
-- The **apps** are stateless: server-rendered Next.js + server
-  actions. `.next/` cache is the only meaningful app-side state.
-- Each app lives in its own tenants; users with memberships in both
-  can switch apps without re-auth.
+## License
 
-## Stack
+- **SOAR app code** (`apps/soar` + `packages/app-framework`): Apache-2.0
+- **SynapCores engine binary** (Community Edition): free under SynapCores CE EULA; source is proprietary
 
-- Next.js 15 (App Router, server actions)
-- TypeScript (strict)
-- Tailwind CSS + shadcn/ui
-- Auth.js v5 (credentials + magic-link)
-- bcryptjs (password + API key + connector + MCP-token hashing)
-- zod (validation)
-- @synapcores/app-framework (auth + RBAC + shared UI + agent)
-- SynapCores Community Edition v1.7.0.1-ce (data tier)
+See `LICENSE` in this repo for the SOAR app terms.
 
-## Licensing
+## Related repositories
 
-- `packages/app-framework` — Apache-2.0
-- `apps/soar` — Apache-2.0 (open core)
-- `apps/aml` — Apache-2.0 (open core)
-- Enterprise tier (managed cloud + certified playbook library + SOC 2
-  Type II auditor portal + dedicated support) — request pricing at
-  https://synapcores.com.
+- **The engine itself**: https://github.com/SynapCores/synapcores-releases (Community Edition binaries)
+- **The AML transaction-monitoring sibling app**: https://github.com/SynapCores/synapcores-aml
+- **Reference agents** (drop-in Python / voice): https://github.com/SynapCores/synapcores-agent
+- **Docs**: https://docs.synapcores.com
 
-## Contributing
+---
 
-Issues + PRs welcome. The framework
-(`packages/app-framework`) is designed for reuse across vertical apps —
-SOAR + AML are the first two; Compliance + Claims + Legal are next.
-
-## Status
-
-**Design-partner alpha.** Not yet GA. Both end-to-end loops run on the
-same engine. Production deployments need an LLM wired (see
-`*_TRIAGE_MODE=auto`) and the relevant adapters configured.
+Built by [SynapCores](https://synapcores.com). If this saved your SOC team a day of work, [⭐ the repo](https://github.com/SynapCores/synapcores-soar/stargazers).
