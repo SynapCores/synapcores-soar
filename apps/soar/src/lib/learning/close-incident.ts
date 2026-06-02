@@ -12,7 +12,7 @@
  *
  * Per the doc: "This is the most important part of the demo."
  */
-import { getClientForSession } from '@synapcores/app-framework';
+import { getClientForSession } from '@synapcores/app-framework/db/server';
 import type { Session } from '@synapcores/app-framework';
 
 export interface CloseIncidentInput {
@@ -94,7 +94,7 @@ export async function closeIncident(
   if (!incRow.rows[0]) {
     throw new Error(`Incident ${input.incidentId} not found`);
   }
-  const firstAlertTs = new Date(alerts.rows[0].ts).getTime();
+  const firstAlertTs = new Date(alerts.rows[0]!.ts).getTime();
   const openedAt = new Date(incRow.rows[0].opened_at).getTime();
   const triagedAt = incRow.rows[0].triaged_at
     ? new Date(incRow.rows[0].triaged_at).getTime()

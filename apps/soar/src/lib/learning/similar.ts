@@ -11,7 +11,7 @@
  * the input the RCA agent uses to suggest recommended actions
  * derived from prior closures.
  */
-import { getClientForSession } from '@synapcores/app-framework';
+import { getClientForSession } from '@synapcores/app-framework/db/server';
 import type { Session } from '@synapcores/app-framework';
 
 export interface SimilarIncident {
