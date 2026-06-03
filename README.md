@@ -54,15 +54,15 @@ cp .env.example .env
 docker compose up -d synapcores
 
 # 2. Grab the engine admin password
-docker compose logs synapcores | grep "password:"
-# → log into http://localhost:28080, mint an admin API token,
+docker compose logs synapcores | grep "API key"
+#   Use the printed OpenClaw memory API key and,
 #   paste it into .env as SYNAPCORES_ADMIN_API_KEY
 
 # 3. Boot SOAR
 docker compose up -d soar
 
 # 4. Register the first user — becomes the workspace owner
-open http://localhost:3001/register
+open http://localhost:3001
 ```
 
 That's the entire install. **Less than 5 minutes** assuming the engine container pulls cleanly.
