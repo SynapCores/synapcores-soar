@@ -47,16 +47,21 @@ Requires **Docker 24+** and **~4 GB free RAM** for the SynapCores engine.
 git clone https://github.com/SynapCores/synapcores-soar
 cd synapcores-soar
 cp .env.example .env
-# Edit .env: set AIDB_JWT_SECRET and AUTH_SECRET (both 32 random bytes).
-# Leave SYNAPCORES_ADMIN_API_KEY blank for first boot.
+# Edit .env: set AIDB_JWT_SECRET and AUTH_SECRET (both >=32 random chars).
+# Quick way:  python3 -c "import secrets; print(secrets.token_urlsafe(48))"
+# Leave SYNAPCORES_ADMIN_API_KEY blank for now — step 2 grabs it for you.
 
 # 1. Boot the SynapCores engine
 docker compose up -d synapcores
 
-# 2. Grab the engine admin password
-docker compose logs synapcores | grep "password:"
-# → log into http://localhost:28080, mint an admin API token,
-#   paste it into .env as SYNAPCORES_ADMIN_API_KEY
+# 2. Wait ~30s for first-boot init, then grab the auto-generated
+#    admin API key directly from the logs:
+sleep 30
+docker compose logs synapcores | grep "OpenClaw Memory API key:" | awk '{print $NF}'
+
+# Paste the aidb_... value into .env as:
+#   SYNAPCORES_ADMIN_API_KEY=aidb_<the value you just copied>
+# (No engine-UI login needed — the engine mints this key on first boot.)
 
 # 3. Boot SOAR
 docker compose up -d soar
@@ -66,6 +71,8 @@ open http://localhost:3001/register
 ```
 
 That's the entire install. **Less than 5 minutes** assuming the engine container pulls cleanly.
+
+> 💡 If you ever need the engine admin UI (`http://localhost:28080`) — the username is `admin` and the password is in the same log block: `docker compose logs synapcores | grep "password:"`. You only need it for advanced engine config; the SOAR app never asks you to log in there.
 
 ## First 15 minutes after install
 
