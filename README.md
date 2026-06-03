@@ -66,8 +66,11 @@ docker compose logs synapcores | grep "OpenClaw Memory API key:" | awk '{print $
 # 3. Boot SOAR
 docker compose up -d soar
 
-# 4. Register the first user — becomes the workspace owner
-open http://localhost:3001/register
+# 4. Open the app and create the first account — that user becomes the workspace owner
+open http://localhost:3001
+# (Don't navigate straight to /register on first boot — it 404s before
+#  any user exists. Hit the root, the app redirects you to the right
+#  onboarding screen.)
 ```
 
 That's the entire install. **Less than 5 minutes** assuming the engine container pulls cleanly.
