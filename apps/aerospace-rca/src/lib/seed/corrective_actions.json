@@ -1,0 +1,252 @@
+[
+  {
+    "id": "CA-2023-019",
+    "anomaly_id": "ANM-2023-BE4-019",
+    "ts": "2023-08-30T00:00:00Z",
+    "title": "Acme Bearings metallurgical re-cert (batch >= 24Q2)",
+    "description": "Issue supplier hold on Acme Bearings AB-7821 bearing race batches pre-24Q2; require metallurgical re-cert on bearing race surface finish + carbide distribution per AS9100 corrective-action loop. Applied to BE-4 production effective 23Q4; propagation review for BE-3 / NG not completed.",
+    "owner": "K. Suresh",
+    "status": "applied",
+    "applied_to_programs": "BE-4"
+  },
+  {
+    "id": "CA-2024-022",
+    "anomaly_id": "ANM-2024-BE4-022",
+    "ts": "2024-11-12T00:00:00Z",
+    "title": "Reinforce Acme re-cert sweep + LOX cleanliness inline check",
+    "description": "Tighten incoming inspection on Acme Bearings AB-7821 to 100% race surface finish + carbide check until 3 consecutive batches pass. Add inline LOX feedline particulate witness sample at every hot-fire. Applied to BE-4 only; BE-3 / NG propagation deferred to follow-up RFA.",
+    "owner": "K. Suresh",
+    "status": "applied",
+    "applied_to_programs": "BE-4"
+  },
+  {
+    "id": "CA-2023-014",
+    "anomaly_id": "ANM-2023-BE4-014",
+    "ts": "2023-03-25T00:00:00Z",
+    "title": "OPB injector face redesign + chamber-pressure damping margin",
+    "description": "Redesigned OPB injector face for cooling-passage flow uniformity; added 6 dB margin to 1T tangential damping coefficient. Validated on unit 015.",
+    "owner": "M. Ortega",
+    "status": "verified",
+    "applied_to_programs": "BE-4"
+  },
+  {
+    "id": "CA-2023-016",
+    "anomaly_id": "ANM-2023-BE4-016",
+    "ts": "2023-06-05T00:00:00Z",
+    "title": "Nozzle throat insert resin-density acceptance tightening",
+    "description": "Tightened Vector Nozzle resin density acceptance from LCL to LCL+10% of range until process capability returns to >1.5 Cpk on 6 lots.",
+    "owner": "M. Ortega",
+    "status": "applied",
+    "applied_to_programs": "BE-4"
+  },
+  {
+    "id": "CA-2023-018",
+    "anomaly_id": "ANM-2023-BE4-018",
+    "ts": "2023-07-12T00:00:00Z",
+    "title": "MOV actuator pilot-pressure validation step",
+    "description": "Added MOV actuator pilot-pressure 5-bar bias check to acceptance flow for Titan Valve MOV.",
+    "owner": "S. Park",
+    "status": "applied",
+    "applied_to_programs": "BE-4"
+  },
+  {
+    "id": "CA-2024-024",
+    "anomaly_id": "ANM-2024-BE4-024",
+    "ts": "2024-12-08T00:00:00Z",
+    "title": "Northstar gimbal actuator seal-lot re-qual",
+    "description": "Reject affected gimbal actuator seal lot; require Northstar to re-qual seal lot with two consecutive in-house TVC sweeps.",
+    "owner": "R. Kim",
+    "status": "applied",
+    "applied_to_programs": "BE-4,NG"
+  },
+  {
+    "id": "CA-2024-025",
+    "anomaly_id": "ANM-2024-BE4-025",
+    "ts": "2025-01-04T00:00:00Z",
+    "title": "Dome forging eddy-current acceptance protocol",
+    "description": "Documented eddy-current re-scan procedure + grind-blend acceptance for dome-surface linear indications.",
+    "owner": "R. Kim",
+    "status": "verified",
+    "applied_to_programs": "BE-4,NG"
+  },
+  {
+    "id": "CA-2025-026",
+    "anomaly_id": "ANM-2025-BE4-026",
+    "ts": "2025-05-09T00:00:00Z",
+    "title": "Witness-sample particulate trend escalation criterion",
+    "description": "Add 30-day rolling mean trend escalation criterion to particulate witness sample data review.",
+    "owner": "K. Suresh",
+    "status": "applied",
+    "applied_to_programs": "BE-4"
+  },
+  {
+    "id": "CA-2024-021",
+    "anomaly_id": "ANM-2024-BE4-021",
+    "ts": "2024-08-04T00:00:00Z",
+    "title": "Summit Injector element-47 LCL inspection gate",
+    "description": "Add 100% element-47 inspection gate to injector incoming for next 6 batches.",
+    "owner": "M. Ortega",
+    "status": "applied",
+    "applied_to_programs": "BE-4"
+  },
+  {
+    "id": "CA-2023-013",
+    "anomaly_id": "ANM-2023-BE4-013",
+    "ts": "2023-02-15T00:00:00Z",
+    "title": "Titan Valve helium leak-test bench standardization",
+    "description": "Calibrate Titan Valve helium leak test bench against NIST-traceable reference at next maintenance interval.",
+    "owner": "S. Park",
+    "status": "verified",
+    "applied_to_programs": "BE-4"
+  },
+  {
+    "id": "CA-2023-017",
+    "anomaly_id": "ANM-2023-BE4-017",
+    "ts": "2023-06-10T00:00:00Z",
+    "title": "Horizon Ceramic deposition fixture maintenance protocol",
+    "description": "Documented quarterly deposition fixture maintenance protocol with thickness validation per article.",
+    "owner": "M. Ortega",
+    "status": "applied",
+    "applied_to_programs": "BE-4,NG"
+  },
+  {
+    "id": "CA-2023-BE3-005",
+    "anomaly_id": "ANM-2023-BE3-005",
+    "ts": "2023-05-01T00:00:00Z",
+    "title": "Filament-winding tension control loop tuning",
+    "description": "Tune Pacific Pressurant filament-winding tension control loop after process drift recurrence.",
+    "owner": "D. Allen",
+    "status": "applied",
+    "applied_to_programs": "BE-3,NS"
+  },
+  {
+    "id": "CA-2024-BE3-008",
+    "anomaly_id": "ANM-2024-BE3-008",
+    "ts": "2024-10-18T00:00:00Z",
+    "title": "Vector Nozzle corner-of-print acceptance rework",
+    "description": "Tighten corner-of-print resin density acceptance until process capability Cpk returns >1.5 on 6 lots.",
+    "owner": "D. Allen",
+    "status": "applied",
+    "applied_to_programs": "BE-3"
+  },
+  {
+    "id": "CA-2025-BE3-009",
+    "anomaly_id": "ANM-2025-BE3-009",
+    "ts": "2025-03-22T00:00:00Z",
+    "title": "Ironwood Cryo prevalve solenoid lot quarantine",
+    "description": "Quarantine prevalve solenoid lot; root-cause + supplier audit before release of next shipment.",
+    "owner": "D. Allen",
+    "status": "applied",
+    "applied_to_programs": "BE-3,NS"
+  },
+  {
+    "id": "CA-2024-NG-004",
+    "anomaly_id": "ANM-2024-NG-004",
+    "ts": "2024-10-22T00:00:00Z",
+    "title": "MFV seat rework + acceptance criterion update",
+    "description": "Document MFV seat rework procedure + tighten acceptance from 10 to 6 sccm seat leakage.",
+    "owner": "P. Nguyen",
+    "status": "applied",
+    "applied_to_programs": "NG"
+  },
+  {
+    "id": "CA-2024-NG-003",
+    "anomaly_id": "ANM-2024-NG-003",
+    "ts": "2024-06-30T00:00:00Z",
+    "title": "Aerojet second-stage liner mandrel offset standard",
+    "description": "Document Aerojet second-stage liner mandrel offset standard and add inspection gate.",
+    "owner": "P. Nguyen",
+    "status": "verified",
+    "applied_to_programs": "NG"
+  },
+  {
+    "id": "CA-2023-NG-001",
+    "anomaly_id": "ANM-2023-NG-001",
+    "ts": "2023-08-01T00:00:00Z",
+    "title": "Atlas Tankage weld-procedure qualification refresh",
+    "description": "Refresh weld-procedure qualification on Atlas Tankage second-stage methane dome interfaces.",
+    "owner": "P. Nguyen",
+    "status": "verified",
+    "applied_to_programs": "NG"
+  },
+  {
+    "id": "CA-2025-NG-008",
+    "anomaly_id": "ANM-2025-NG-008",
+    "ts": "2025-11-12T00:00:00Z",
+    "title": "Nozzle skirt brazing process auditing",
+    "description": "Vector Nozzle brazing audit + Y-axis fixture refurbishment.",
+    "owner": "P. Nguyen",
+    "status": "applied",
+    "applied_to_programs": "NG"
+  },
+  {
+    "id": "CA-2022-NS-23",
+    "anomaly_id": "ANM-2022-NS-23",
+    "ts": "2023-09-26T00:00:00Z",
+    "title": "FAA NS-23 corrective-action package (21 actions)",
+    "description": "Closed FAA NS-23 corrective action plan covering 21 actions across hardware, organization, and process: nozzle fatigue analysis update, operating-temperature characterization, manufacturing verification, plus organizational accountability for engineering / mission-assurance change-control. Return-to-flight on NS-24 Dec 19 2023.",
+    "owner": "T. Fisher",
+    "status": "verified",
+    "applied_to_programs": "NS"
+  },
+  {
+    "id": "CA-2024-NS-002",
+    "anomaly_id": "ANM-2024-NS-002",
+    "ts": "2024-10-04T00:00:00Z",
+    "title": "Docking ring fastener tension monitoring",
+    "description": "Sigma Fasteners receiving audit; capsule docking ring fastener tension monitoring during build flow.",
+    "owner": "T. Fisher",
+    "status": "applied",
+    "applied_to_programs": "NS"
+  },
+  {
+    "id": "CA-2024-BE4-023",
+    "anomaly_id": "ANM-2024-BE4-023",
+    "ts": "2024-11-18T00:00:00Z",
+    "title": "A286 fastener torque scatter control",
+    "description": "Tighten Sigma Fasteners torque scatter acceptance + add lot-level retention check.",
+    "owner": "R. Kim",
+    "status": "applied",
+    "applied_to_programs": "BE-4,NG"
+  },
+  {
+    "id": "CA-2025-AVT-3",
+    "anomaly_id": "ANM-2025-BE4-AVT-3",
+    "ts": "2025-09-25T00:00:00Z",
+    "title": "Lakeside FPGA configuration patch validation",
+    "description": "Patch validated with Lakeside Avionics; rolled into thrust-chamber telemetry conditioner configuration baseline.",
+    "owner": "J. Reyes",
+    "status": "verified",
+    "applied_to_programs": "BE-4,NG"
+  },
+  {
+    "id": "CA-2023-BE3-004",
+    "anomaly_id": "ANM-2023-BE3-004",
+    "ts": "2023-09-19T00:00:00Z",
+    "title": "Ironwood Cryo seat surface acceptance protocol",
+    "description": "Document cosmetic surface acceptance protocol for cryogenic prevalve seats during receiving.",
+    "owner": "D. Allen",
+    "status": "applied",
+    "applied_to_programs": "BE-3,NS"
+  },
+  {
+    "id": "CA-2024-DEMO",
+    "anomaly_id": "ANM-2024-BE4-DEMO",
+    "ts": "2024-04-04T00:00:00Z",
+    "title": "Merlin Seals trend register escalation criteria",
+    "description": "Add trend register escalation criteria for sub-reject helium leak measurements on interpropellant seals.",
+    "owner": "K. Suresh",
+    "status": "applied",
+    "applied_to_programs": "BE-4"
+  },
+  {
+    "id": "CA-2025-NS-003",
+    "anomaly_id": "ANM-2025-NS-003",
+    "ts": "2025-06-04T00:00:00Z",
+    "title": "Pacific Pressurant batch annotation policy",
+    "description": "Annotate Pacific Pressurant helium pressurant composite-overwrap bottle lots that exceed 4 deg thermal cycle deviation; trend pile for monthly review.",
+    "owner": "T. Fisher",
+    "status": "applied",
+    "applied_to_programs": "NS,BE-3"
+  }
+]

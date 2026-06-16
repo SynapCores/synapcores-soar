@@ -1,0 +1,17 @@
+[
+  { "id": "acme-bearings", "name": "Acme Precision Bearings Co", "tier": 1, "city": "Cleveland", "state": "OH" },
+  { "id": "aerojet-composites", "name": "Aerojet Composites Inc", "tier": 1, "city": "Sacramento", "state": "CA" },
+  { "id": "titan-valves", "name": "Titan Valve Systems LLC", "tier": 1, "city": "Phoenix", "state": "AZ" },
+  { "id": "polaris-ignition", "name": "Polaris Ignition Co", "tier": 2, "city": "Huntsville", "state": "AL" },
+  { "id": "northstar-actuators", "name": "Northstar Aerospace Actuators", "tier": 1, "city": "Cedar Rapids", "state": "IA" },
+  { "id": "summit-injectors", "name": "Summit Injector Works", "tier": 2, "city": "Boulder", "state": "CO" },
+  { "id": "vector-nozzles", "name": "Vector Nozzle & Throat LLC", "tier": 1, "city": "Tulsa", "state": "OK" },
+  { "id": "pacific-pressurant", "name": "Pacific Pressurant Systems", "tier": 2, "city": "Long Beach", "state": "CA" },
+  { "id": "ironwood-cryo", "name": "Ironwood Cryogenic Inc", "tier": 1, "city": "Denver", "state": "CO" },
+  { "id": "lakeside-electronics", "name": "Lakeside Avionics Electronics", "tier": 2, "city": "Madison", "state": "WI" },
+  { "id": "delta-machining", "name": "Delta Precision Machining", "tier": 2, "city": "Wichita", "state": "KS" },
+  { "id": "atlas-tankage", "name": "Atlas Tankage Systems", "tier": 1, "city": "Hartford", "state": "CT" },
+  { "id": "merlin-seals", "name": "Merlin Sealing Solutions", "tier": 2, "city": "Greenville", "state": "SC" },
+  { "id": "horizon-ceramic", "name": "Horizon Ceramic Composites", "tier": 1, "city": "Portland", "state": "OR" },
+  { "id": "sigma-fasteners", "name": "Sigma Aerospace Fasteners", "tier": 3, "city": "San Jose", "state": "CA" }
+]

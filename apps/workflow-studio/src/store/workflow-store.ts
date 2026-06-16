@@ -23,6 +23,13 @@ const DEFAULT_META: WorkflowMeta = {
   minEngineVersion: '1.8.5',
 };
 
+// ── Clipboard snapshot ────────────────────────────────────────────────────────
+
+interface ClipboardSnapshot {
+  nodes: WorkflowNode[];
+  edges: WorkflowEdge[];
+}
+
 // ── State + actions shape ──────────────────────────────────────────────────────
 
 export interface WorkflowState {
@@ -39,12 +46,25 @@ export interface WorkflowState {
   history: WorkflowSnapshot[];
   historyIndex: number;
 
+  // ── Clipboard ─────────────────────────────────────────────────────────────
+  clipboard: ClipboardSnapshot | null;
+
   // ── UI state ───────────────────────────────────────────────────────────────
   selectedNodeId: string | null;
+  selectedNodeIds: string[];       // multi-select
   inspectorOpen: boolean;
   paletteOpen: boolean;
   sqlPreviewOpen: boolean;
   templateGalleryOpen: boolean;
+  finderOpen: boolean;             // ⌘F search-in-canvas
+  sampleDataEditorOpen: boolean;   // FR-37 fixture editor
+  outputMappingOpen: boolean;      // FR-38 output mapping
+
+  // ── Read-only mode (FR-15) ─────────────────────────────────────────────────
+  readOnly: boolean;
+
+  // ── Sample data fixtures (FR-37) ──────────────────────────────────────────
+  sampleData: Record<string, unknown>;
 
   // ── Validation ─────────────────────────────────────────────────────────────
   validationIssues: ValidationIssue[];
@@ -67,10 +87,16 @@ export interface WorkflowState {
   addEdge: (edge: WorkflowEdge) => void;
   removeEdge: (id: string) => void;
   selectNode: (id: string | null) => void;
+  setSelectedNodeIds: (ids: string[]) => void;
   toggleInspector: (open?: boolean) => void;
   togglePalette: (open?: boolean) => void;
   toggleSqlPreview: (open?: boolean) => void;
   toggleTemplateGallery: (open?: boolean) => void;
+  toggleFinder: (open?: boolean) => void;
+  toggleSampleDataEditor: (open?: boolean) => void;
+  toggleOutputMapping: (open?: boolean) => void;
+  setReadOnly: (v: boolean) => void;
+  setSampleData: (data: Record<string, unknown>) => void;
   setValidationIssues: (issues: ValidationIssue[]) => void;
   setIsValidating: (v: boolean) => void;
   setCompiledSql: (sql: string, compiledAt?: string) => void;
@@ -81,6 +107,9 @@ export interface WorkflowState {
   pushHistory: () => void;
   undo: () => void;
   redo: () => void;
+  // Clipboard
+  copySelected: () => void;
+  pasteClipboard: (offset?: { x: number; y: number }) => void;
 }
 
 // ── Store ──────────────────────────────────────────────────────────────────────
@@ -99,11 +128,20 @@ export const useWorkflowStore = create<WorkflowState>()(
     history: [],
     historyIndex: -1,
 
+    clipboard: null,
+
     selectedNodeId: null,
+    selectedNodeIds: [],
     inspectorOpen: false,
     paletteOpen: true,
     sqlPreviewOpen: false,
     templateGalleryOpen: false,
+    finderOpen: false,
+    sampleDataEditorOpen: false,
+    outputMappingOpen: false,
+
+    readOnly: false,
+    sampleData: {},
 
     validationIssues: [],
     isValidating: false,
@@ -180,6 +218,17 @@ export const useWorkflowStore = create<WorkflowState>()(
     selectNode: (id) =>
       set((s) => {
         s.selectedNodeId = id;
+        if (id) {
+          if (!s.selectedNodeIds.includes(id)) s.selectedNodeIds = [id];
+        } else {
+          s.selectedNodeIds = [];
+        }
+      }),
+
+    setSelectedNodeIds: (ids) =>
+      set((s) => {
+        s.selectedNodeIds = ids;
+        s.selectedNodeId = ids[0] ?? null;
       }),
 
     // ── UI toggles ────────────────────────────────────────────────────────────
@@ -202,6 +251,32 @@ export const useWorkflowStore = create<WorkflowState>()(
     toggleTemplateGallery: (open) =>
       set((s) => {
         s.templateGalleryOpen = open !== undefined ? open : !s.templateGalleryOpen;
+      }),
+
+    toggleFinder: (open) =>
+      set((s) => {
+        s.finderOpen = open !== undefined ? open : !s.finderOpen;
+      }),
+
+    toggleSampleDataEditor: (open) =>
+      set((s) => {
+        s.sampleDataEditorOpen = open !== undefined ? open : !s.sampleDataEditorOpen;
+      }),
+
+    toggleOutputMapping: (open) =>
+      set((s) => {
+        s.outputMappingOpen = open !== undefined ? open : !s.outputMappingOpen;
+      }),
+
+    setReadOnly: (v) =>
+      set((s) => {
+        s.readOnly = v;
+      }),
+
+    setSampleData: (data) =>
+      set((s) => {
+        s.sampleData = data as typeof s.sampleData;
+        s.isDirty = true;
       }),
 
     // ── Validation ────────────────────────────────────────────────────────────
@@ -247,10 +322,14 @@ export const useWorkflowStore = create<WorkflowState>()(
         s.history = [];
         s.historyIndex = -1;
         s.selectedNodeId = null;
+        s.selectedNodeIds = [];
+        s.clipboard = null;
         s.inspectorOpen = false;
+        s.finderOpen = false;
         s.compiledSql = null;
         s.compiledAt = null;
         s.validationIssues = [];
+        s.sampleData = {};
       }),
 
     newWorkflow: () =>
@@ -265,10 +344,14 @@ export const useWorkflowStore = create<WorkflowState>()(
         s.history = [];
         s.historyIndex = -1;
         s.selectedNodeId = null;
+        s.selectedNodeIds = [];
+        s.clipboard = null;
         s.inspectorOpen = false;
+        s.finderOpen = false;
         s.compiledSql = null;
         s.compiledAt = null;
         s.validationIssues = [];
+        s.sampleData = {};
       }),
 
     setWorkflowMeta: (meta) =>
@@ -318,6 +401,55 @@ export const useWorkflowStore = create<WorkflowState>()(
         s.nodes = next.nodes as typeof s.nodes;
         s.edges = next.edges as typeof s.edges;
         s.historyIndex = historyIndex + 1;
+        s.isDirty = true;
+      });
+    },
+
+    // ── Clipboard (FR-12) ─────────────────────────────────────────────────────
+
+    copySelected: () => {
+      const { nodes, edges, selectedNodeIds } = get();
+      if (selectedNodeIds.length === 0) return;
+      const copiedNodes = nodes.filter((n) => selectedNodeIds.includes(n.id));
+      const copiedEdges = edges.filter(
+        (e) => selectedNodeIds.includes(e.source) && selectedNodeIds.includes(e.target),
+      );
+      set((s) => {
+        s.clipboard = {
+          nodes: JSON.parse(JSON.stringify(copiedNodes)) as typeof copiedNodes,
+          edges: JSON.parse(JSON.stringify(copiedEdges)) as typeof copiedEdges,
+        };
+      });
+    },
+
+    pasteClipboard: (offset = { x: 40, y: 40 }) => {
+      const { clipboard } = get();
+      if (!clipboard || clipboard.nodes.length === 0) return;
+
+      // Remap IDs so pasted nodes don't conflict
+      const idMap = new Map<string, string>();
+      const pastedNodes: WorkflowNode[] = clipboard.nodes.map((n) => {
+        const newId = crypto.randomUUID();
+        idMap.set(n.id, newId);
+        return {
+          ...n,
+          id: newId,
+          position: { x: n.position.x + offset.x, y: n.position.y + offset.y },
+        };
+      });
+      const pastedEdges: WorkflowEdge[] = clipboard.edges.map((e) => ({
+        ...e,
+        id: crypto.randomUUID(),
+        source: idMap.get(e.source) ?? e.source,
+        target: idMap.get(e.target) ?? e.target,
+      }));
+
+      get().pushHistory();
+      set((s) => {
+        s.nodes.push(...(pastedNodes as typeof s.nodes));
+        s.edges.push(...(pastedEdges as typeof s.edges));
+        s.selectedNodeIds = pastedNodes.map((n) => n.id);
+        s.selectedNodeId = pastedNodes[0]?.id ?? null;
         s.isDirty = true;
       });
     },

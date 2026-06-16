@@ -1,0 +1,123 @@
+{
+  "toolbar": {
+    "new": "New",
+    "import": "Import",
+    "export": "Export",
+    "templates": "Templates",
+    "undo": "Undo",
+    "redo": "Redo",
+    "validate": "Validate",
+    "compile": "Compile",
+    "sql": "SQL",
+    "test": "Test",
+    "fixtures": "Fixtures",
+    "mapping": "Mapping",
+    "deploy": "Deploy",
+    "undeploy": "Undeploy",
+    "save": "Save",
+    "saving": "Saving...",
+    "saved": "Saved",
+    "disconnected": "disconnected"
+  },
+  "canvas": {
+    "readOnlyBanner": "Read-only mode — viewing workflow as auditor/compliance role",
+    "loading": "Loading canvas..."
+  },
+  "palette": {
+    "searchPlaceholder": "Search nodes...",
+    "categories": {
+      "Triggers": "Triggers",
+      "Memory": "Memory",
+      "Agents": "Agents",
+      "Actions": "Actions",
+      "Control Flow": "Control Flow",
+      "I/O": "I/O"
+    }
+  },
+  "finder": {
+    "placeholder": "Search nodes by label or type...",
+    "noResults": "No nodes match your search",
+    "emptyCanvas": "No nodes on canvas",
+    "hint": {
+      "navigate": "navigate",
+      "select": "select",
+      "close": "close"
+    }
+  },
+  "inspector": {
+    "deleteNode": "Delete node",
+    "disabled": "Disabled"
+  },
+  "validation": {
+    "errors": "error(s)",
+    "warnings": "warning(s)",
+    "noIssues": "No issues"
+  },
+  "runs": {
+    "noRuns": "No runs found",
+    "columns": {
+      "runId": "Run ID",
+      "workflow": "Workflow",
+      "started": "Started",
+      "duration": "Duration",
+      "status": "Status",
+      "export": "Export"
+    },
+    "filters": {
+      "all": "All",
+      "running": "Running",
+      "success": "Success",
+      "error": "Error"
+    },
+    "refresh": "Refresh",
+    "rerun": "Re-run",
+    "export": "Export",
+    "liveStatus": {
+      "live": "live",
+      "connecting": "connecting"
+    }
+  },
+  "sampleData": {
+    "title": "Sample Data Fixtures",
+    "description": "Defines the NEW row injected when running in Test mode",
+    "cancel": "Cancel",
+    "save": "Save Fixtures",
+    "validJson": "Valid JSON",
+    "invalidJson": "Invalid JSON"
+  },
+  "outputMapping": {
+    "title": "Output Mapping",
+    "description": "Map output columns from one node to input fields of the next",
+    "noEdges": "No edges on canvas",
+    "selectEdge": "Select an edge to configure its column mappings",
+    "addButton": "Add",
+    "sourcePlaceholder": "source column",
+    "targetPlaceholder": "target field / variable"
+  },
+  "templates": {
+    "title": "Workflow Templates",
+    "description": "Start from a pre-built agentic workflow",
+    "useButton": "Use Template"
+  },
+  "approvals": {
+    "title": "Pending Approvals",
+    "noApprovals": "No pending approvals",
+    "approve": "Approve",
+    "reject": "Reject"
+  },
+  "settings": {
+    "title": "Engine Settings",
+    "engineUrl": "Engine URL",
+    "apiKey": "API Key",
+    "save": "Save",
+    "test": "Test Connection",
+    "connected": "Connected",
+    "disconnected": "Disconnected"
+  },
+  "errors": {
+    "engineNotConfigured": "No engine configured",
+    "loadFailed": "Failed to load",
+    "saveFailed": "Failed to save",
+    "deployFailed": "Failed to deploy"
+  }
+}

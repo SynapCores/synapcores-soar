@@ -225,7 +225,9 @@ export interface ValidationResult {
 export interface CompilationResult {
   workflowId: string;
   version: number;
-  sql: string;
+  sql: string;              // full human-readable SQL (header + proc + triggers)
+  procedureSql: string;     // just the CREATE OR REPLACE PROCEDURE ... END; block
+  triggerSqlList: string[]; // each CREATE TRIGGER ... as separate string
   procedureName: string;
   triggerNames: string[];
   engineMinVersion: string;

@@ -1,0 +1,25 @@
+{
+  "name": "@synapcores/telemetry-bridge",
+  "version": "0.1.0",
+  "description": "DCU bridge for the aerospace-rca U6 demo. WebSocket ingest from a 3K-sensor / 100Hz simulator, per-sensor ring buffer + Welford rolling stats + z-score / step / debounce detection, batched 1Hz aggregate INSERTs into SynapCores AIDB, alert promotion into the U1 anomalies table with EMBED().",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "tsx watch --env-file=.env.local src/index.ts",
+    "start": "tsx --env-file=.env.local src/index.ts",
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo 'no linter configured'"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}

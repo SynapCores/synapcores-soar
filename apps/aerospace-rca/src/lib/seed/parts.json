@@ -1,0 +1,234 @@
+[
+  {
+    "id": "p-bearing-lox",
+    "part_number": "AB-7821",
+    "name": "LOX-side turbopump bearing race",
+    "subsystem": "turbopump",
+    "supplier_id": "acme-bearings",
+    "programs": "BE-4,BE-3,NG"
+  },
+  {
+    "id": "p-bearing-ch4",
+    "part_number": "AB-7822",
+    "name": "Methane-side turbopump bearing race",
+    "subsystem": "turbopump",
+    "supplier_id": "acme-bearings",
+    "programs": "BE-4,NG"
+  },
+  {
+    "id": "p-bearing-lh2",
+    "part_number": "AB-7831",
+    "name": "LH2-side turbopump bearing race (legacy)",
+    "subsystem": "turbopump",
+    "supplier_id": "acme-bearings",
+    "programs": "BE-3,HLS"
+  },
+  {
+    "id": "p-cc-liner-be4",
+    "part_number": "AC-4401",
+    "name": "Combustion chamber regen-cooled liner",
+    "subsystem": "combustion-chamber",
+    "supplier_id": "aerojet-composites",
+    "programs": "BE-4"
+  },
+  {
+    "id": "p-cc-liner-be3",
+    "part_number": "AC-3301",
+    "name": "Combustion chamber ablative liner",
+    "subsystem": "combustion-chamber",
+    "supplier_id": "aerojet-composites",
+    "programs": "BE-3,NS"
+  },
+  {
+    "id": "p-cc-liner-ng",
+    "part_number": "AC-4501",
+    "name": "Second-stage combustion chamber liner",
+    "subsystem": "combustion-chamber",
+    "supplier_id": "aerojet-composites",
+    "programs": "NG"
+  },
+  {
+    "id": "p-injector-opb",
+    "part_number": "SJ-2210",
+    "name": "Oxidizer pre-burner injector face",
+    "subsystem": "pre-burner",
+    "supplier_id": "summit-injectors",
+    "programs": "BE-4,NG"
+  },
+  {
+    "id": "p-injector-main",
+    "part_number": "SJ-2310",
+    "name": "Main injector element",
+    "subsystem": "injector",
+    "supplier_id": "summit-injectors",
+    "programs": "BE-4,BE-3,NG,HLS"
+  },
+  {
+    "id": "p-igniter-tea",
+    "part_number": "PI-1101",
+    "name": "TEA/TEB pyrotechnic igniter cartridge",
+    "subsystem": "igniter",
+    "supplier_id": "polaris-ignition",
+    "programs": "BE-4,NG"
+  },
+  {
+    "id": "p-igniter-spark",
+    "part_number": "PI-1201",
+    "name": "Spark-torch igniter assembly",
+    "subsystem": "igniter",
+    "supplier_id": "polaris-ignition",
+    "programs": "BE-3,NS,HLS"
+  },
+  {
+    "id": "p-valve-he",
+    "part_number": "TV-5510",
+    "name": "Helium pressurant isolation valve",
+    "subsystem": "pressurization",
+    "supplier_id": "titan-valves",
+    "programs": "BE-4,BE-3,NG,NS,HLS"
+  },
+  {
+    "id": "p-valve-mov",
+    "part_number": "TV-5611",
+    "name": "Main oxidizer valve (MOV)",
+    "subsystem": "valves",
+    "supplier_id": "titan-valves",
+    "programs": "BE-4,NG"
+  },
+  {
+    "id": "p-valve-mfv",
+    "part_number": "TV-5612",
+    "name": "Main fuel valve (MFV)",
+    "subsystem": "valves",
+    "supplier_id": "titan-valves",
+    "programs": "BE-4,NG"
+  },
+  {
+    "id": "p-gimbal-tvc",
+    "part_number": "NS-9901",
+    "name": "Thrust-vector-control gimbal actuator",
+    "subsystem": "actuators",
+    "supplier_id": "northstar-actuators",
+    "programs": "BE-4,NG"
+  },
+  {
+    "id": "p-gimbal-rcs",
+    "part_number": "NS-9902",
+    "name": "Reaction-control gimbal actuator",
+    "subsystem": "actuators",
+    "supplier_id": "northstar-actuators",
+    "programs": "NS,HLS"
+  },
+  {
+    "id": "p-nozzle-throat",
+    "part_number": "VN-3001",
+    "name": "Nozzle throat insert (carbon-carbon)",
+    "subsystem": "nozzle",
+    "supplier_id": "vector-nozzles",
+    "programs": "BE-4,BE-3,NS"
+  },
+  {
+    "id": "p-nozzle-ext",
+    "part_number": "VN-3102",
+    "name": "Nozzle extension skirt",
+    "subsystem": "nozzle",
+    "supplier_id": "vector-nozzles",
+    "programs": "BE-4,NG"
+  },
+  {
+    "id": "p-tank-lox",
+    "part_number": "AT-7702",
+    "name": "LOX tank dome forging",
+    "subsystem": "tankage",
+    "supplier_id": "atlas-tankage",
+    "programs": "BE-4,NG"
+  },
+  {
+    "id": "p-tank-ch4",
+    "part_number": "AT-7703",
+    "name": "Methane tank dome forging",
+    "subsystem": "tankage",
+    "supplier_id": "atlas-tankage",
+    "programs": "BE-4,NG"
+  },
+  {
+    "id": "p-seal-cryo",
+    "part_number": "MS-1101",
+    "name": "Cryogenic interpropellant seal",
+    "subsystem": "turbopump",
+    "supplier_id": "merlin-seals",
+    "programs": "BE-4,BE-3,NG"
+  },
+  {
+    "id": "p-seal-shaft",
+    "part_number": "MS-1202",
+    "name": "Turbopump shaft labyrinth seal",
+    "subsystem": "turbopump",
+    "supplier_id": "merlin-seals",
+    "programs": "BE-4,BE-3"
+  },
+  {
+    "id": "p-ceramic-coat",
+    "part_number": "HC-2200",
+    "name": "Chamber-wall thermal barrier coating",
+    "subsystem": "combustion-chamber",
+    "supplier_id": "horizon-ceramic",
+    "programs": "BE-4,NG"
+  },
+  {
+    "id": "p-fastener-cryo",
+    "part_number": "SF-0808",
+    "name": "Cryogenic-grade A286 fastener",
+    "subsystem": "structures",
+    "supplier_id": "sigma-fasteners",
+    "programs": "BE-4,BE-3,NG,NS,HLS"
+  },
+  {
+    "id": "p-avionics-tc",
+    "part_number": "LE-1201",
+    "name": "Thrust-chamber telemetry conditioner",
+    "subsystem": "avionics",
+    "supplier_id": "lakeside-electronics",
+    "programs": "BE-4,NG"
+  },
+  {
+    "id": "p-avionics-imu",
+    "part_number": "LE-1310",
+    "name": "Inertial measurement unit",
+    "subsystem": "avionics",
+    "supplier_id": "lakeside-electronics",
+    "programs": "NS,NG,HLS"
+  },
+  {
+    "id": "p-pressurant-comp",
+    "part_number": "PP-4401",
+    "name": "Helium pressurant composite-overwrap bottle",
+    "subsystem": "pressurization",
+    "supplier_id": "pacific-pressurant",
+    "programs": "NS,BE-3"
+  },
+  {
+    "id": "p-cryo-feedline",
+    "part_number": "IC-6610",
+    "name": "Vacuum-jacketed LOX feedline",
+    "subsystem": "feedlines",
+    "supplier_id": "ironwood-cryo",
+    "programs": "BE-4,NG"
+  },
+  {
+    "id": "p-cryo-prevalve",
+    "part_number": "IC-6620",
+    "name": "Cryogenic prevalve",
+    "subsystem": "feedlines",
+    "supplier_id": "ironwood-cryo",
+    "programs": "BE-4,BE-3,NG"
+  },
+  {
+    "id": "p-machined-housing",
+    "part_number": "DP-3030",
+    "name": "Turbopump volute housing (machined)",
+    "subsystem": "turbopump",
+    "supplier_id": "delta-machining",
+    "programs": "BE-4,NG"
+  }
+]

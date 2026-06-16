@@ -1,0 +1,20 @@
+[
+  {
+    "email": "j.warren@blueorigin.com",
+    "name": "Jordan Warren",
+    "role": "Reliability Engineer III, Engines",
+    "departed": "2026-01-15T00:00:00Z"
+  },
+  {
+    "email": "e.holloway@blueorigin.com",
+    "name": "Erin Holloway",
+    "role": "Mission Assurance Lead, HLS",
+    "departed": "2025-09-30T00:00:00Z"
+  },
+  {
+    "email": "m.tanaka@blueorigin.com",
+    "name": "Marcus Tanaka",
+    "role": "Test Engineer, Hot-fire Stand 4",
+    "departed": "2025-12-04T00:00:00Z"
+  }
+]

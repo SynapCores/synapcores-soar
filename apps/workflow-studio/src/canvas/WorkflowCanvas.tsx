@@ -10,7 +10,6 @@ import {
   useNodesState,
   useEdgesState,
   BackgroundVariant,
-  Panel,
   type Connection,
   type Node,
   type Edge,
@@ -26,11 +25,49 @@ import { ValidationPanel } from './ValidationPanel';
 import { SqlPreviewPane } from './SqlPreviewPane';
 import { TemplateGallery } from './TemplateGallery';
 import { ToolBar } from './ToolBar';
-import type { WorkflowNode, WorkflowEdge } from '@synapcores/workflow-types';
+import { NodeFinder } from './NodeFinder';
+import { SampleDataEditor } from './SampleDataEditor';
+import { OutputMappingPanel } from './OutputMappingPanel';
+import { useAutosave } from '@/lib/autosave';
+import type { WorkflowNode, WorkflowEdge, DataType } from '@synapcores/workflow-types';
+import { NODE_CATEGORIES } from '@synapcores/workflow-types';
+
+// ── Typed edge port definitions ────────────────────────────────────────────────
+// Maps node type → { output: DataType[], input: DataType[] }
+// ANY means "accepts any type"
+
+const NODE_PORT_TYPES: Record<string, { output: DataType; input: DataType }> = {
+  RowEventTrigger: { output: 'ROWSET', input: 'ANY' },
+  MemoryStore:     { output: 'TEXT',   input: 'ANY' },
+  MemoryRecall:    { output: 'ROWSET', input: 'TEXT' },
+  AgentRun:        { output: 'TEXT',   input: 'ANY' },
+  SqlQuery:        { output: 'ROWSET', input: 'ANY' },
+  HttpRequest:     { output: 'JSON',   input: 'ANY' },
+  If:              { output: 'ANY',    input: 'ANY' },
+  Switch:          { output: 'ANY',    input: 'ANY' },
+  Loop:            { output: 'ANY',    input: 'ANY' },
+  Approval:        { output: 'ANY',    input: 'ANY' },
+  SetVariable:     { output: 'ANY',    input: 'ANY' },
+  Return:          { output: 'ANY',    input: 'ANY' },
+};
+
+function isTypedEdgeCompatible(
+  sourceNodeType: string,
+  targetNodeType: string,
+): boolean {
+  const src = NODE_PORT_TYPES[sourceNodeType];
+  const tgt = NODE_PORT_TYPES[targetNodeType];
+  if (!src || !tgt) return true; // unknown — allow
+  if (src.output === 'ANY' || tgt.input === 'ANY') return true;
+  return src.output === tgt.input;
+}
 
 // ── WorkflowCanvas ─────────────────────────────────────────────────────────────
 
 export function WorkflowCanvas() {
+  // Wire autosave
+  useAutosave();
+
   const {
     nodes: storeNodes,
     edges: storeEdges,
@@ -39,11 +76,24 @@ export function WorkflowCanvas() {
     addNode,
     addEdge: storeAddEdge,
     removeNode,
-    removeEdge,
+    removeEdge: storeRemoveEdge,
     selectNode,
+    setSelectedNodeIds,
     selectedNodeId,
+    selectedNodeIds,
     toggleInspector,
     paletteOpen,
+    readOnly,
+    copySelected,
+    pasteClipboard,
+    toggleFinder,
+    undo,
+    redo,
+    workflowId,
+    version,
+    workflowMeta,
+    nodes,
+    edges,
   } = useWorkflowStore((s) => ({
     nodes: s.nodes,
     edges: s.edges,
@@ -54,32 +104,43 @@ export function WorkflowCanvas() {
     removeNode: s.removeNode,
     removeEdge: s.removeEdge,
     selectNode: s.selectNode,
+    setSelectedNodeIds: s.setSelectedNodeIds,
     selectedNodeId: s.selectedNodeId,
+    selectedNodeIds: s.selectedNodeIds,
     toggleInspector: s.toggleInspector,
     paletteOpen: s.paletteOpen,
+    readOnly: s.readOnly,
+    copySelected: s.copySelected,
+    pasteClipboard: s.pasteClipboard,
+    toggleFinder: s.toggleFinder,
+    undo: s.undo,
+    redo: s.redo,
+    workflowId: s.workflowId,
+    version: s.version,
+    workflowMeta: s.workflowMeta,
+    storeNodes: s.nodes,
+    storeEdges: s.edges,
   }));
 
   // ── Local React Flow state synced with store ─────────────────────────────
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(storeNodes as Node[]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(storeEdges as Edge[]);
+  const [rfNodes, setRfNodes, onNodesChange] = useNodesState(storeNodes as Node[]);
+  const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState(storeEdges as Edge[]);
 
   // Sync store → local when store changes externally (e.g. load workflow, undo/redo)
   useEffect(() => {
-    setNodes(storeNodes as Node[]);
-  }, [storeNodes, setNodes]);
+    setRfNodes(storeNodes as Node[]);
+  }, [storeNodes, setRfNodes]);
 
   useEffect(() => {
-    setEdges(storeEdges as Edge[]);
-  }, [storeEdges, setEdges]);
+    setRfEdges(storeEdges as Edge[]);
+  }, [storeEdges, setRfEdges]);
 
   // ── Push local changes back to store ─────────────────────────────────────
 
   const handleNodesChange = useCallback(
     (changes: NodeChange[]) => {
       onNodesChange(changes);
-      // After applying changes to local state, sync to store on the next tick
-      // We do a controlled sync: just mirror the final state
     },
     [onNodesChange],
   );
@@ -94,7 +155,7 @@ export function WorkflowCanvas() {
   // Sync node positions / deletions back to store after React Flow processes them
   const handleNodeDragStop = useCallback(
     (_: MouseEvent | TouchEvent, node: Node) => {
-      // Update position in store
+      if (readOnly) return;
       const wfNode = storeNodes.find((n) => n.id === node.id);
       if (wfNode) {
         storeSetNodes(
@@ -104,26 +165,51 @@ export function WorkflowCanvas() {
         );
       }
     },
-    [storeNodes, storeSetNodes],
+    [storeNodes, storeSetNodes, readOnly],
   );
 
-  // ── Connection handling ───────────────────────────────────────────────────
+  // ── Connection handling (with typed edge rejection FR-4) ──────────────────
 
   const onConnect = useCallback(
     (connection: Connection) => {
+      if (readOnly) return;
       if (!connection.source || !connection.target) return;
+
+      // Typed edge rejection (FR-4)
+      const sourceNode = storeNodes.find((n) => n.id === connection.source);
+      const targetNode = storeNodes.find((n) => n.id === connection.target);
+      if (sourceNode && targetNode) {
+        const compatible = isTypedEdgeCompatible(
+          sourceNode.data.nodeType,
+          targetNode.data.nodeType,
+        );
+        if (!compatible) {
+          // Announce the rejection via console (no blocking alert — keeps UX smooth)
+          // The ValidationPanel will surface this after validate is clicked
+          console.warn(
+            `[edge-reject] ${sourceNode.data.nodeType} → ${targetNode.data.nodeType}: incompatible data types`,
+          );
+          return; // reject the connection
+        }
+      }
+
+      // Determine edge data type
+      const edgeDataType: DataType =
+        (sourceNode ? NODE_PORT_TYPES[sourceNode.data.nodeType]?.output : undefined) ?? 'ANY';
+
       const newEdge: WorkflowEdge = {
         id: crypto.randomUUID(),
         source: connection.source,
         target: connection.target,
         sourceHandle: connection.sourceHandle ?? undefined,
         targetHandle: connection.targetHandle ?? undefined,
+        dataType: edgeDataType,
         animated: false,
       };
-      setEdges((eds) => rfAddEdge({ ...newEdge } as Edge, eds));
+      setRfEdges((eds) => rfAddEdge({ ...newEdge } as Edge, eds));
       storeAddEdge(newEdge);
     },
-    [setEdges, storeAddEdge],
+    [setRfEdges, storeAddEdge, storeNodes, readOnly],
   );
 
   // ── Node selection ────────────────────────────────────────────────────────
@@ -137,38 +223,123 @@ export function WorkflowCanvas() {
 
   const onNodeDoubleClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
+      if (readOnly) return;
       selectNode(node.id);
       toggleInspector(true);
     },
-    [selectNode, toggleInspector],
+    [selectNode, toggleInspector, readOnly],
   );
 
   const onPaneClick = useCallback(() => {
     selectNode(null);
   }, [selectNode]);
 
-  // ── Keyboard: delete selected nodes ──────────────────────────────────────
+  // Selection change → sync selectedNodeIds
+  const onSelectionChange = useCallback(
+    ({ nodes: selNodes }: { nodes: Node[]; edges: Edge[] }) => {
+      setSelectedNodeIds(selNodes.map((n) => n.id));
+    },
+    [setSelectedNodeIds],
+  );
+
+  // ── Global keyboard shortcuts ─────────────────────────────────────────────
 
   useEffect(() => {
+    const isMac = navigator.platform.includes('Mac');
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        // Only fire if not focused on an input
-        const tag = (document.activeElement as HTMLElement)?.tagName;
-        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      const modKey = isMac ? e.metaKey : e.ctrlKey;
+      const tag = (document.activeElement as HTMLElement)?.tagName;
+      const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+
+      // ⌘S / Ctrl+S — Save (compile + trigger engine save)
+      if (modKey && e.key === 's') {
+        e.preventDefault();
+        // Trigger compile via the toolbar's API call
+        const def = {
+          id: workflowId,
+          version,
+          meta: workflowMeta,
+          nodes: storeNodes,
+          edges: storeEdges,
+          viewport: { x: 0, y: 0, zoom: 1 },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        void fetch(`/api/v1/workflows/${workflowId}/compile`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(def),
+        });
+        return;
+      }
+
+      // ⌘F / Ctrl+F — Find node
+      if (modKey && e.key === 'f') {
+        e.preventDefault();
+        toggleFinder(true);
+        return;
+      }
+
+      // ⌘Z / Ctrl+Z — Undo
+      if (modKey && !e.shiftKey && e.key === 'z') {
+        e.preventDefault();
+        undo();
+        return;
+      }
+
+      // ⌘⇧Z / Ctrl+Y — Redo
+      if ((modKey && e.shiftKey && e.key === 'z') || (modKey && e.key === 'y')) {
+        e.preventDefault();
+        redo();
+        return;
+      }
+
+      // ⌘C / Ctrl+C — Copy selected
+      if (modKey && e.key === 'c' && !isInput) {
+        copySelected();
+        return;
+      }
+
+      // ⌘V / Ctrl+V — Paste
+      if (modKey && e.key === 'v' && !isInput) {
+        if (!readOnly) pasteClipboard();
+        return;
+      }
+
+      // Delete / Backspace — delete selected node
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !isInput && !readOnly) {
         if (selectedNodeId) {
           removeNode(selectedNodeId);
-          setNodes((ns) => ns.filter((n) => n.id !== selectedNodeId));
+          setRfNodes((ns) => ns.filter((n) => n.id !== selectedNodeId));
         }
       }
     };
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedNodeId, removeNode, setNodes]);
+  }, [
+    selectedNodeId,
+    removeNode,
+    setRfNodes,
+    toggleFinder,
+    copySelected,
+    pasteClipboard,
+    undo,
+    redo,
+    readOnly,
+    workflowId,
+    version,
+    workflowMeta,
+    storeNodes,
+    storeEdges,
+  ]);
 
   // ── Drag-and-drop from palette ────────────────────────────────────────────
 
   const onDrop = useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
+      if (readOnly) return;
       event.preventDefault();
       const raw = event.dataTransfer.getData('application/reactflow');
       if (!raw) return;
@@ -179,32 +350,32 @@ export function WorkflowCanvas() {
           x: event.clientX - bounds.left,
           y: event.clientY - bounds.top,
         };
+
+        // Build sensible defaults for the node type
+        const catEntry = NODE_CATEGORIES.find((c) => c.nodeType === nodeType);
         const newNode: WorkflowNode = {
           id: crypto.randomUUID(),
           type: nodeType,
           position,
           data: {
             nodeType: nodeType as WorkflowNode['data']['nodeType'],
-            label: nodeType,
+            label: catEntry?.label ?? nodeType,
             disabled: false,
           } as WorkflowNode['data'],
         };
         addNode(newNode);
-        setNodes((ns) => [...ns, newNode as Node]);
+        setRfNodes((ns) => [...ns, newNode as Node]);
       } catch {
         // malformed drag data — ignore
       }
     },
-    [addNode, setNodes],
+    [addNode, setRfNodes, readOnly],
   );
 
   const onDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-  }, []);
-
-  // ── Palette offset for React Flow container ───────────────────────────────
-  // When palette is open we offset nodes, but React Flow handles its own viewport
+    event.dataTransfer.dropEffect = readOnly ? 'none' : 'move';
+  }, [readOnly]);
 
   return (
     <div className="relative h-full w-full bg-slate-950">
@@ -216,8 +387,8 @@ export function WorkflowCanvas() {
       {/* React Flow canvas — fill below toolbar */}
       <div className="absolute top-[44px] left-0 right-0 bottom-0">
         <ReactFlow
-          nodes={nodes}
-          edges={edges}
+          nodes={rfNodes}
+          edges={rfEdges}
           onNodesChange={handleNodesChange}
           onEdgesChange={handleEdgesChange}
           onConnect={onConnect}
@@ -225,6 +396,7 @@ export function WorkflowCanvas() {
           onNodeDoubleClick={onNodeDoubleClick}
           onNodeDragStop={handleNodeDragStop}
           onPaneClick={onPaneClick}
+          onSelectionChange={onSelectionChange}
           onDrop={onDrop}
           onDragOver={onDragOver}
           nodeTypes={NODE_TYPES}
@@ -233,6 +405,9 @@ export function WorkflowCanvas() {
           fitView
           fitViewOptions={{ padding: 0.2 }}
           proOptions={{ hideAttribution: true }}
+          nodesDraggable={!readOnly}
+          nodesConnectable={!readOnly}
+          elementsSelectable={!readOnly}
           defaultEdgeOptions={{
             style: { stroke: '#475569', strokeWidth: 1.5 },
             markerEnd: { type: 'arrowclosed' as const, color: '#475569' },
@@ -256,6 +431,13 @@ export function WorkflowCanvas() {
           />
         </ReactFlow>
       </div>
+
+      {/* Read-only banner */}
+      {readOnly && (
+        <div className="absolute top-[44px] left-0 right-0 z-40 bg-amber-900/80 border-b border-amber-700/60 px-4 py-1 text-center text-xs text-amber-300 font-medium">
+          Read-only mode — viewing workflow as auditor/compliance role
+        </div>
+      )}
 
       {/* Node palette overlay — left side */}
       <div className="absolute top-[44px] left-0 bottom-0 z-20 pointer-events-none">
@@ -287,6 +469,15 @@ export function WorkflowCanvas() {
 
       {/* Template gallery modal */}
       <TemplateGallery />
+
+      {/* Node finder modal (⌘F) */}
+      <NodeFinder />
+
+      {/* Sample data editor modal (FR-37) */}
+      <SampleDataEditor />
+
+      {/* Output mapping panel (FR-38) */}
+      <OutputMappingPanel />
     </div>
   );
 }

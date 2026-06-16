@@ -1,0 +1,34 @@
+{
+  "name": "@synapcores/aerospace-rca",
+  "version": "0.1.0",
+  "description": "SynapCores Aerospace RCA — engineering anomaly investigation memory. Vector + graph + immutable-audit + in-DB agents on one engine. Built for Blue Origin outreach.",
+  "license": "Apache-2.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3005",
+    "build": "next build",
+    "start": "next start --port 3005",
+    "bootstrap": "node ./bin/bootstrap.mjs",
+    "seed-demo": "node ./bin/seed-demo.mjs",
+    "playback": "node ./bin/playback.mjs",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@synapcores/app-framework": "workspace:*",
+    "lucide-react": "^0.460.0",
+    "next": "^15.0.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-force-graph-2d": "^1.27.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.14",
+    "typescript": "^5.6.3"
+  }
+}

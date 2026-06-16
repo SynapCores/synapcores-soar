@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * Brand tokens — aerospace dark, slightly warmer than AML's teal so the
+ * "rocket test stand at 6 AM" mood lands. Amber primary accent nods at
+ * propulsion-lab telemetry; charts pull from the chart-* tokens.
+ */
+@layer base {
+  :root {
+    --background: 222 47% 5%;
+    --foreground: 210 40% 98%;
+
+    --card: 222 47% 8%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222 47% 8%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 38 92% 56%;
+    --primary-foreground: 222 47% 6%;
+
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 217 33% 22%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 38 92% 56%;
+
+    --radius: 0.5rem;
+
+    --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-headline: 'Inter', system-ui, sans-serif;
+    --font-mono: ui-monospace, 'SF Mono', 'Monaco', monospace;
+  }
+}
+
+body {
+  min-height: 100vh;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+/* Demo-specific helpers — fade/slide entrance for the cinematic playback. */
+.demo-fade-in {
+  animation: demoFadeIn 600ms ease-out both;
+}
+.demo-slide-up {
+  animation: demoSlideUp 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.demo-pulse-ring {
+  animation: demoPulseRing 1.6s ease-out infinite;
+}
+
+@keyframes demoFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes demoSlideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes demoPulseRing {
+  0% { box-shadow: 0 0 0 0 hsl(38 92% 56% / 0.55); }
+  100% { box-shadow: 0 0 0 18px hsl(38 92% 56% / 0); }
+}

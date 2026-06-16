@@ -26,6 +26,10 @@ function sanitizeId(id: string): string {
   return id.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 20);
 }
 
+function escapeSql(val: string): string {
+  return val.replace(/'/g, "''");
+}
+
 // ── Topological sort of workflow nodes ────────────────────────────────────────
 function topoSort(nodes: WorkflowNode[], edges: WorkflowEdge[]): WorkflowNode[] {
   const inDegree = new Map<string, number>();
@@ -60,6 +64,23 @@ function topoSort(nodes: WorkflowNode[], edges: WorkflowEdge[]): WorkflowNode[] 
   return result.length === nodes.length ? result : nodes;
 }
 
+// ── Per-node step-run tracking helper ─────────────────────────────────────────
+// Emits INSERT + UPDATE for workflow_step_runs tracking.
+// Wraps the body statement with step tracking.
+function withStepTracking(node: WorkflowNode, bodyLines: string): string {
+  const sid = sanitizeId(node.id);
+  const nodeType = node.data.nodeType;
+  return [
+    `-- [STEP START] ${nodeType}: ${node.data.label}`,
+    `INSERT INTO workflow_step_runs (id, run_id, node_id, node_type, status, started_at)`,
+    `  VALUES (CONCAT('step_', @_run_id, '_${sid}'), @_run_id, '${node.id}', '${nodeType}', 'running', NOW());`,
+    bodyLines,
+    `UPDATE workflow_step_runs SET status = 'success', ended_at = NOW()`,
+    `  WHERE id = CONCAT('step_', @_run_id, '_${sid}');`,
+    `-- [STEP END]`,
+  ].join('\n');
+}
+
 // ── Per-node SQL emitters ──────────────────────────────────────────────────────
 
 function emitRowEventTrigger(_node: WorkflowNode): string {
@@ -68,45 +89,90 @@ function emitRowEventTrigger(_node: WorkflowNode): string {
 
 function emitMemoryStore(node: WorkflowNode): string {
   const d = node.data as Extract<NodeData, { nodeType: 'MemoryStore' }>;
-  const ns = d.namespace || 'default';
+  const ns = escapeSql(d.namespace || 'default');
   const content = d.contentExpr || '@input';
   const meta = d.metadataExpr ? `, ${d.metadataExpr}` : ', NULL';
-  return `-- Memory Store: ${d.label}\nSELECT MEMORY_STORE('${ns}', ${content}${meta}) INTO @memory_store_${sanitizeId(node.id)};`;
+  const sid = sanitizeId(node.id);
+  const body = `SET @memory_store_${sid} = MEMORY_STORE('${ns}', ${content}${meta});`;
+  return withStepTracking(node, body);
 }
 
 function emitMemoryRecall(node: WorkflowNode): string {
+  // Workaround playbook: MEMORY_RECALL is a confirmed live primitive (v1.8.5-ce).
+  // Use MEMORY_RECALL() direct call into a variable.
+  // Temp-table pattern (INSERT INTO _wf_<runid>_step_N) deferred to v0.2.0
+  // when engine guarantees dynamic table creation in procedures.
   const d = node.data as Extract<NodeData, { nodeType: 'MemoryRecall' }>;
-  const ns = d.namespace || 'default';
+  const ns = escapeSql(d.namespace || 'default');
   const query = d.queryExpr || '@query';
   const topK = d.topK ?? 5;
   const outVar = d.outputVariable || `@recall_${sanitizeId(node.id)}`;
-  return `-- Memory Recall: ${d.label}\nSELECT * FROM MEMORY_RECALL('${ns}', ${query}, ${topK}) INTO TABLE ${outVar};`;
+  const body = `SET ${outVar} = MEMORY_RECALL('${ns}', ${query}, ${topK});`;
+  return withStepTracking(node, body);
 }
 
 function emitAgentRun(node: WorkflowNode): string {
   const d = node.data as Extract<NodeData, { nodeType: 'AgentRun' }>;
-  const prompt = (d.promptTemplate || 'Perform the task.').replace(/'/g, "''");
-  const model = d.model ? `'${d.model}'` : 'NULL';
-  const tools = d.tools.length > 0 ? `'${d.tools.join(',')}'` : 'NULL';
+  const prompt = escapeSql(d.promptTemplate || 'Perform the task.');
+  const model = d.model ? `'${escapeSql(d.model)}'` : 'NULL';
+  const tools = d.tools.length > 0 ? `'${escapeSql(d.tools.join(','))}'` : 'NULL';
   const outVar = d.outputVariable || `@agent_${sanitizeId(node.id)}`;
-  return `-- Agent Run: ${d.label}\nSELECT AGENT_RUN('${prompt}', ${model}, ${tools}) INTO ${outVar};`;
+  const sid = sanitizeId(node.id);
+
+  const body = [
+    `SET ${outVar} = AGENT_RUN('${prompt}', ${model}, ${tools});`,
+    `UPDATE workflow_step_runs SET output_json = JSON_OBJECT('result', ${outVar})`,
+    `  WHERE id = CONCAT('step_', @_run_id, '_${sid}');`,
+  ].join('\n');
+
+  return withStepTracking(node, body);
 }
 
 function emitSqlQuery(node: WorkflowNode): string {
+  // Workaround: execute inline SQL directly. Do NOT use `INTO TABLE @var`
+  // which has uncertain engine support. Output variable captures row count / scalar.
   const d = node.data as Extract<NodeData, { nodeType: 'SqlQuery' }>;
-  const outVar = d.outputVariable || `@sql_${sanitizeId(node.id)}`;
   const sql = (d.sql || 'SELECT 1').trim().replace(/;$/, '');
-  return `-- SQL Query: ${d.label}\n${sql} INTO TABLE ${outVar};`;
+  const body = `${sql};`;
+  return withStepTracking(node, body);
 }
 
 function emitHttpRequest(node: WorkflowNode): string {
+  // Workaround playbook: Node proxy makes the HTTP call directly.
+  // Compiler emits:
+  //   1. A marker comment: -- HTTP_EGRESS_CALLOUT step_<n>
+  //   2. An INSERT into workflow_step_runs with status='pending_http'
+  //      containing the URL/method/headers so the proxy knows what to call.
+  //   3. A variable set to NULL — the proxy fills it via UPDATE.
   const d = node.data as Extract<NodeData, { nodeType: 'HttpRequest' }>;
   const outVar = d.outputVariable || `@http_${sanitizeId(node.id)}`;
-  const method = d.method || 'GET';
-  const url = d.url.replace(/'/g, "''");
-  const headers = JSON.stringify(d.headers || {}).replace(/'/g, "''");
-  const body = d.bodyExpr ? d.bodyExpr : 'NULL';
-  return `-- HTTP Request: ${d.label}\nCALL execute_http_request('${method}', '${url}', '${headers}', ${body}) INTO ${outVar};`;
+  const method = escapeSql(d.method || 'GET');
+  const url = escapeSql(d.url || '');
+  const headers = escapeSql(JSON.stringify(d.headers || {}));
+  const body = d.bodyExpr ? escapeSql(d.bodyExpr) : '';
+  const sid = sanitizeId(node.id);
+  const timeoutMs = d.timeoutMs ?? 30000;
+
+  const lines = [
+    `-- HTTP_EGRESS_CALLOUT step_${sid}`,
+    `-- Method: ${d.method || 'GET'}`,
+    `-- URL: ${d.url || '(unset)'}`,
+    `-- Timeout: ${timeoutMs}ms`,
+    `-- Node proxy will execute this HTTP call and write back to workflow_step_runs.output_json`,
+    `INSERT INTO workflow_step_runs (id, run_id, node_id, node_type, status, input_json, started_at)`,
+    `  VALUES (`,
+    `    CONCAT('step_', @_run_id, '_${sid}'),`,
+    `    @_run_id,`,
+    `    '${node.id}',`,
+    `    'HttpRequest',`,
+    `    'pending_http',`,
+    `    '${JSON.stringify({ method: d.method, url: d.url, headers: d.headers, body: d.bodyExpr, timeoutMs }).replace(/'/g, "''")}',`,
+    `    NOW()`,
+    `  );`,
+    `SET ${outVar} = NULL; -- filled by node proxy after HTTP call completes`,
+  ].join('\n');
+
+  return lines;
 }
 
 function emitIf(node: WorkflowNode, edges: WorkflowEdge[], allNodes: WorkflowNode[]): string {
@@ -125,7 +191,7 @@ function emitIf(node: WorkflowNode, edges: WorkflowEdge[], allNodes: WorkflowNod
     ? indent(emitNode(falseTarget, edges, allNodes), 2)
     : '  -- (no false branch)';
 
-  return `-- If: ${d.label}\nIF ${condition} THEN\n${trueBranch}\nELSE\n${falseBranch}\nEND IF;`;
+  return `-- If: ${node.data.label}\nIF ${condition} THEN\n${trueBranch}\nELSE\n${falseBranch}\nEND IF;`;
 }
 
 function emitSwitch(node: WorkflowNode, edges: WorkflowEdge[], allNodes: WorkflowNode[]): string {
@@ -139,7 +205,7 @@ function emitSwitch(node: WorkflowNode, edges: WorkflowEdge[], allNodes: Workflo
     const body = target
       ? indent(emitNode(target, edges, allNodes), 4)
       : '    -- (no handler)';
-    caseBody += `  WHEN '${c.value.replace(/'/g, "''")}' THEN\n${body}\n`;
+    caseBody += `  WHEN '${escapeSql(c.value)}' THEN\n${body}\n`;
   }
 
   if (d.defaultCase) {
@@ -151,7 +217,7 @@ function emitSwitch(node: WorkflowNode, edges: WorkflowEdge[], allNodes: Workflo
     caseBody += `  ELSE\n${body}\n`;
   }
 
-  return `-- Switch: ${d.label}\nCASE ${expr}\n${caseBody}END CASE;`;
+  return `-- Switch: ${node.data.label}\nCASE ${expr}\n${caseBody}END CASE;`;
 }
 
 function emitLoop(node: WorkflowNode, edges: WorkflowEdge[], allNodes: WorkflowNode[]): string {
@@ -165,35 +231,48 @@ function emitLoop(node: WorkflowNode, edges: WorkflowEdge[], allNodes: WorkflowN
     : '  -- (empty loop body)';
   const iterVar = `@_loop_iter_${sanitizeId(node.id)}`;
 
-  return `-- Loop: ${d.label}\nSET ${iterVar} = 0;\nWHILE ${condition} AND ${iterVar} < ${maxIter} LOOP\n${body}\n  SET ${iterVar} = ${iterVar} + 1;\nEND LOOP;`;
+  return `-- Loop: ${node.data.label}\nSET ${iterVar} = 0;\nWHILE ${condition} AND ${iterVar} < ${maxIter} LOOP\n${body}\n  SET ${iterVar} = ${iterVar} + 1;\nEND LOOP;`;
 }
 
 function emitApproval(node: WorkflowNode): string {
+  // SOAR approval pattern: insert into workflow_approval_queue with state='awaiting',
+  // then RETURN. Second trigger on workflow_approval_queue fires when state changes.
   const d = node.data as Extract<NodeData, { nodeType: 'Approval' }>;
-  const title = d.title.replace(/'/g, "''");
-  const message = d.message.replace(/'/g, "''");
+  const title = escapeSql(d.title || 'Approval Required');
+  const message = escapeSql(d.message || '');
   const approvalId = sanitizeId(node.id);
+  const timeoutMs = d.timeoutMs ?? 86400000;
   return [
-    `-- Approval Gate: ${d.label}`,
-    `INSERT INTO workflow_approval_queue (id, run_id, node_id, state, requested_at)`,
-    `  VALUES (CONCAT('apr_', '${approvalId}', '_', NOW()), @_run_id, '${node.id}', 'awaiting', NOW());`,
-    `-- Procedure returns here; second trigger on workflow_approval_queue resumes on state change.`,
+    `-- Approval Gate: ${node.data.label}`,
     `-- Title: ${title}`,
     `-- Message: ${message}`,
+    `-- Timeout: ${timeoutMs}ms`,
+    `INSERT INTO workflow_approval_queue (id, run_id, node_id, state, requested_at)`,
+    `  VALUES (CONCAT('apr_', '${approvalId}', '_', @_run_id), @_run_id, '${node.id}', 'awaiting', NOW());`,
+    `UPDATE workflow_runs SET status = 'awaiting_approval' WHERE id = @_run_id;`,
+    `-- Procedure returns here; second trigger on workflow_approval_queue resumes on state change.`,
     `RETURN;`,
   ].join('\n');
 }
 
 function emitSetVariable(node: WorkflowNode): string {
   const d = node.data as Extract<NodeData, { nodeType: 'SetVariable' }>;
-  if (!d.assignments.length) return `-- Set Variable: ${d.label} (no assignments)`;
-  return d.assignments.map(a => `SET ${a.variable} = ${a.expression};`).join('\n');
+  if (!d.assignments.length) return `-- Set Variable: ${node.data.label} (no assignments)`;
+  const body = d.assignments.map(a => `SET ${a.variable} = ${a.expression};`).join('\n');
+  return withStepTracking(node, body);
 }
 
 function emitReturn(node: WorkflowNode): string {
   const d = node.data as Extract<NodeData, { nodeType: 'Return' }>;
   const expr = d.expression || 'NULL';
-  return `-- Return: ${d.label}\nRETURN ${expr};`;
+  // Update run status BEFORE RETURN — the trailing success-UPDATE at the
+  // procedure foot is dead code once RETURN fires.
+  return [
+    `-- Return: ${node.data.label}`,
+    `UPDATE workflow_runs SET status = 'success', ended_at = NOW()`,
+    `  WHERE id = @_run_id AND status = 'running';`,
+    `RETURN ${expr};`,
+  ].join('\n');
 }
 
 // ── Main node dispatch ────────────────────────────────────────────────────────
@@ -244,6 +323,84 @@ function emitTriggers(procName: string, triggers: WorkflowNode[]): string {
     .join('\n\n');
 }
 
+// ── Schema bootstrap (workflow tracking tables) ────────────────────────────────
+
+export function emitBootstrapDDL(): string {
+  return [
+    `-- Workflow Studio schema bootstrap`,
+    `-- Run once on first connection to the target engine`,
+    ``,
+    `CREATE TABLE IF NOT EXISTS workflow_definitions (`,
+    `  id           TEXT PRIMARY KEY,`,
+    `  name         TEXT NOT NULL,`,
+    `  description  TEXT,`,
+    `  version      INT  NOT NULL DEFAULT 1,`,
+    `  definition   TEXT NOT NULL,`,
+    `  compiled_sql TEXT,`,
+    `  status       TEXT NOT NULL DEFAULT 'draft',`,
+    `  owner        TEXT,`,
+    `  created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,`,
+    `  updated_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+    `);`,
+    ``,
+    `CREATE TABLE IF NOT EXISTS workflow_versions (`,
+    `  id           TEXT PRIMARY KEY,`,
+    `  workflow_id  TEXT NOT NULL,`,
+    `  version      INT  NOT NULL,`,
+    `  definition   TEXT NOT NULL,`,
+    `  created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,`,
+    `  created_by   TEXT`,
+    `);`,
+    ``,
+    `CREATE TABLE IF NOT EXISTS workflow_runs (`,
+    `  id           TEXT PRIMARY KEY,`,
+    `  workflow_id  TEXT NOT NULL,`,
+    `  version      INT  NOT NULL,`,
+    `  trigger_kind TEXT,`,
+    `  trigger_data TEXT,`,
+    `  status       TEXT NOT NULL,`,
+    `  started_at   TIMESTAMP,`,
+    `  ended_at     TIMESTAMP,`,
+    `  error        TEXT`,
+    `);`,
+    ``,
+    `CREATE TABLE IF NOT EXISTS workflow_step_runs (`,
+    `  id           TEXT PRIMARY KEY,`,
+    `  run_id       TEXT NOT NULL,`,
+    `  node_id      TEXT NOT NULL,`,
+    `  node_type    TEXT NOT NULL,`,
+    `  status       TEXT NOT NULL,`,
+    `  input_json   TEXT,`,
+    `  output_json  TEXT,`,
+    `  started_at   TIMESTAMP,`,
+    `  ended_at     TIMESTAMP,`,
+    `  error        TEXT`,
+    `);`,
+    ``,
+    `CREATE TABLE IF NOT EXISTS workflow_approval_queue (`,
+    `  id           TEXT PRIMARY KEY,`,
+    `  run_id       TEXT NOT NULL,`,
+    `  node_id      TEXT NOT NULL,`,
+    `  state        TEXT NOT NULL,`,
+    `  requested_at TIMESTAMP,`,
+    `  decided_at   TIMESTAMP,`,
+    `  decided_by   TEXT,`,
+    `  reason       TEXT`,
+    `);`,
+    ``,
+    `-- workflow_deploys uses IMMUTABLE TABLE for audit chain`,
+    `CREATE IMMUTABLE TABLE IF NOT EXISTS workflow_deploys (`,
+    `  id           TEXT PRIMARY KEY,`,
+    `  workflow_id  TEXT NOT NULL,`,
+    `  version      INT  NOT NULL,`,
+    `  engine_url   TEXT NOT NULL,`,
+    `  deployed_by  TEXT,`,
+    `  deployed_at  TIMESTAMP,`,
+    `  objects_json TEXT`,
+    `);`,
+  ].join('\n');
+}
+
 // ── Main compile function ──────────────────────────────────────────────────────
 
 export function compile(wf: WorkflowDefinition): CompilationResult {
@@ -256,17 +413,34 @@ export function compile(wf: WorkflowDefinition): CompilationResult {
   // Topological sort — emit in dependency order
   const sorted = topoSort(bodyNodes, wf.edges);
 
-  // Top-level = body nodes with no incoming edges from other body nodes
-  const bodyNodeIds = new Set(bodyNodes.map(n => n.id));
-  const incomingFromBody = new Set(
-    wf.edges
-      .filter(e => bodyNodeIds.has(e.source))
-      .map(e => e.target),
-  );
+  // Nodes that are emitted INLINE by a branching parent (If/Switch/Loop).
+  // These must NOT be emitted again at the sequential level — the parent
+  // node's emitNode() call recurses into them.
+  const branchInlinedIds = new Set<string>();
+  for (const n of bodyNodes) {
+    const type = n.data.nodeType;
+    if (type === 'If') {
+      for (const e of wf.edges.filter(e2 => e2.source === n.id && (e2.sourceHandle === 'true' || e2.sourceHandle === 'false'))) {
+        branchInlinedIds.add(e.target);
+      }
+    } else if (type === 'Switch') {
+      for (const e of wf.edges.filter(e2 => e2.source === n.id)) {
+        branchInlinedIds.add(e.target);
+      }
+    } else if (type === 'Loop') {
+      for (const e of wf.edges.filter(e2 => e2.source === n.id && e2.sourceHandle === 'body')) {
+        branchInlinedIds.add(e.target);
+      }
+    }
+  }
 
-  const topLevel = sorted.filter(n => !incomingFromBody.has(n.id));
+  // Emit all sorted body nodes that are not owned by a branching parent.
+  // For a linear chain A→B→C→D this emits all 4 in topological order.
+  // For an If node the If is emitted (and recurses into its branches inline)
+  // but the branch targets are excluded from this list.
+  const emitNodes = sorted.filter(n => !branchInlinedIds.has(n.id));
 
-  const bodyStatements = topLevel
+  const bodyStatements = emitNodes
     .map(n => emitNode(n, wf.edges, wf.nodes))
     .join('\n\n');
 
@@ -276,21 +450,24 @@ export function compile(wf: WorkflowDefinition): CompilationResult {
     `-- Generated by SynapCores Workflow Studio`,
     `-- Min engine version: ${wf.meta.minEngineVersion}`,
     `-- DO NOT EDIT — managed by workflow studio (id: ${wf.id})`,
+    `-- Compiled at: ${new Date().toISOString()}`,
     '',
   ].join('\n');
 
   const procedure = [
     `CREATE OR REPLACE PROCEDURE ${procName}(NEW JSON, OLD JSON)`,
     `BEGIN`,
-    `  -- Studio variables`,
+    `  -- Studio run tracking variables`,
     `  DECLARE @_run_id TEXT;`,
-    `  SET @_run_id = CONCAT('run_', '${shortId}', '_', NOW());`,
-    `  INSERT INTO workflow_runs (id, workflow_id, version, trigger_kind, status, started_at)`,
-    `    VALUES (@_run_id, '${wf.id}', ${wf.version}, 'trigger', 'running', NOW());`,
+    `  SET @_run_id = CONCAT('run_', '${shortId}', '_', REPLACE(CAST(NOW() AS TEXT), ' ', 'T'));`,
+    `  INSERT INTO workflow_runs (id, workflow_id, version, trigger_kind, trigger_data, status, started_at)`,
+    `    VALUES (@_run_id, '${wf.id}', ${wf.version}, 'trigger', CAST(NEW AS TEXT), 'running', NOW());`,
     ``,
     indent(bodyStatements, 2),
     ``,
-    `  UPDATE workflow_runs SET status = 'success', ended_at = NOW() WHERE id = @_run_id;`,
+    `  -- Mark run as success if not already marked (approval sets awaiting_approval)`,
+    `  UPDATE workflow_runs SET status = 'success', ended_at = NOW()`,
+    `    WHERE id = @_run_id AND status = 'running';`,
     `END;`,
   ].join('\n');
 
@@ -298,17 +475,36 @@ export function compile(wf: WorkflowDefinition): CompilationResult {
 
   const deployAudit = [
     ``,
-    `-- Deploy audit (insert into workflow_deploys separately at deploy time)`,
+    `-- Deploy audit INSERT is executed separately at deploy time via Node proxy`,
+    `-- INSERT INTO workflow_deploys (id, workflow_id, version, engine_url, deployed_at, objects_json)`,
+    `--   VALUES ('<deploy_id>', '${wf.id}', ${wf.version}, '<engine_url>', NOW(), '<objects_json>');`,
   ].join('\n');
 
   const sql = header + procedure + triggerDDL + deployAudit;
   const hash = createHash('sha256').update(sql).digest('hex');
   const triggerNames = triggers.map(t => `trig_wf_${sanitizeId(t.id)}`);
 
+  // Build individual trigger SQL statements for clean engine execution
+  const triggerSqlList = triggers.map(t => {
+    const d = t.data as Extract<NodeData, { nodeType: 'RowEventTrigger' }>;
+    const table = d.table || 'unknown_table';
+    const events = d.event === 'INSERT_OR_UPDATE' ? 'INSERT OR UPDATE' : d.event;
+    const condition = d.condition ? `\n  WHEN (${d.condition})` : '';
+    const triggerName = `trig_wf_${sanitizeId(t.id)}`;
+    return [
+      `CREATE OR REPLACE TRIGGER ${triggerName}`,
+      `  AFTER ${events} ON ${table}`,
+      `  FOR EACH ROW${condition}`,
+      `  EXECUTE PROCEDURE ${procName}(NEW, OLD);`,
+    ].join('\n');
+  });
+
   return {
     workflowId: wf.id,
     version: wf.version,
     sql,
+    procedureSql: procedure,  // just the procedure block
+    triggerSqlList,            // individual trigger statements
     procedureName: procName,
     triggerNames,
     engineMinVersion: wf.meta.minEngineVersion,
@@ -317,104 +513,4 @@ export function compile(wf: WorkflowDefinition): CompilationResult {
   };
 }
 
-// ── Workflow validator ────────────────────────────────────────────────────────
-
-export function validateWorkflow(wf: WorkflowDefinition) {
-  const issues: Array<{
-    nodeId?: string;
-    edgeId?: string;
-    severity: 'error' | 'warning';
-    message: string;
-    field?: string;
-  }> = [];
-
-  if (!wf.meta.name.trim()) {
-    issues.push({ severity: 'error', message: 'Workflow must have a name' });
-  }
-
-  for (const node of wf.nodes) {
-    const d = node.data;
-
-    if (d.nodeType === 'RowEventTrigger') {
-      if (!d.table?.trim()) {
-        issues.push({ nodeId: node.id, severity: 'error', message: 'Trigger must specify a table', field: 'table' });
-      }
-    }
-    if (d.nodeType === 'AgentRun') {
-      if (!d.promptTemplate?.trim()) {
-        issues.push({ nodeId: node.id, severity: 'error', message: 'Agent Run must have a prompt template', field: 'promptTemplate' });
-      }
-    }
-    if (d.nodeType === 'HttpRequest') {
-      if (!d.url?.trim()) {
-        issues.push({ nodeId: node.id, severity: 'error', message: 'HTTP Request must have a URL', field: 'url' });
-      }
-    }
-    if (d.nodeType === 'SqlQuery') {
-      if (!d.sql?.trim()) {
-        issues.push({ nodeId: node.id, severity: 'warning', message: 'SQL Query is empty', field: 'sql' });
-      }
-    }
-    if (d.nodeType === 'If') {
-      if (!d.condition?.trim()) {
-        issues.push({ nodeId: node.id, severity: 'warning', message: 'If node has no condition', field: 'condition' });
-      }
-    }
-    if (d.nodeType === 'Loop') {
-      if (!d.condition?.trim()) {
-        issues.push({ nodeId: node.id, severity: 'warning', message: 'Loop node has no condition — will never execute body', field: 'condition' });
-      }
-    }
-    if (d.nodeType === 'Switch') {
-      if (!d.expression?.trim()) {
-        issues.push({ nodeId: node.id, severity: 'error', message: 'Switch node must have an expression', field: 'expression' });
-      }
-      if (d.cases.length === 0) {
-        issues.push({ nodeId: node.id, severity: 'warning', message: 'Switch node has no cases defined', field: 'cases' });
-      }
-    }
-    if (d.nodeType === 'Return') {
-      if (!d.expression?.trim()) {
-        issues.push({ nodeId: node.id, severity: 'warning', message: 'Return node has no expression — will return NULL', field: 'expression' });
-      }
-    }
-    if (d.nodeType === 'MemoryStore') {
-      if (!d.namespace?.trim()) {
-        issues.push({ nodeId: node.id, severity: 'warning', message: 'Memory Store should specify a namespace', field: 'namespace' });
-      }
-    }
-    if (d.nodeType === 'MemoryRecall') {
-      if (!d.namespace?.trim()) {
-        issues.push({ nodeId: node.id, severity: 'warning', message: 'Memory Recall should specify a namespace', field: 'namespace' });
-      }
-    }
-  }
-
-  // Check that at least one trigger exists
-  const hasTrigger = wf.nodes.some(n => n.data.nodeType === 'RowEventTrigger');
-  if (!hasTrigger) {
-    issues.push({ severity: 'warning', message: 'No trigger node — workflow will never fire automatically' });
-  }
-
-  // Check for disconnected nodes
-  if (wf.nodes.length > 1) {
-    const connectedIds = new Set([
-      ...wf.edges.map(e => e.source),
-      ...wf.edges.map(e => e.target),
-    ]);
-    for (const node of wf.nodes) {
-      if (!connectedIds.has(node.id)) {
-        issues.push({
-          nodeId: node.id,
-          severity: 'warning',
-          message: `Node "${node.data.label}" is not connected to any other node`,
-        });
-      }
-    }
-  }
-
-  return {
-    valid: issues.filter(i => i.severity === 'error').length === 0,
-    issues,
-  };
-}
+export { validateWorkflow } from './validate';

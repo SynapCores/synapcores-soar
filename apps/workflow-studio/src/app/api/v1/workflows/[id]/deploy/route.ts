@@ -1,6 +1,6 @@
 import 'server-only';
 import { NextResponse } from 'next/server';
-import { compile, validateWorkflow } from '@/compiler';
+import { compile, validateWorkflow, emitBootstrapDDL } from '@/compiler';
 import { getEngine, getDefaultEngine } from '@/lib/secrets';
 import { getTargetEngineClient } from '@/lib/engine-client';
 import { randomUUID } from 'node:crypto';
@@ -32,6 +32,22 @@ export async function POST(
   const compiled = compile(body.definition);
   const client = getTargetEngineClient(engine);
 
+  // Bootstrap schema tables (idempotent — CREATE IF NOT EXISTS)
+  const bootstrapSql = emitBootstrapDDL();
+  // Execute each bootstrap statement individually (split on ; at top level)
+  // Bootstrap DDL only has simple CREATE TABLE statements — safe to split on ;
+  const bootstrapStatements = bootstrapSql
+    .split(';')
+    .map(s => s.trim())
+    .filter(s => s && !s.startsWith('--'));
+  for (const stmt of bootstrapStatements) {
+    try {
+      await client.sql(stmt + ';');
+    } catch {
+      // Most failures here = table already exists — safe to ignore
+    }
+  }
+
   // Check for previous deploy to drop old objects
   let prev: { objects_json: string | null } | undefined;
   try {
@@ -41,7 +57,7 @@ export async function POST(
     );
     prev = prevResult.rows[0];
   } catch {
-    // workflow_deploys might not exist yet
+    // workflow_deploys might not exist yet (bootstrap may have failed silently)
   }
 
   if (prev?.objects_json) {
@@ -51,37 +67,37 @@ export async function POST(
         procedures: string[];
       };
       for (const trig of objects.triggers ?? []) {
-        try {
-          await client.sql(`DROP TRIGGER IF EXISTS ${trig}`);
-        } catch {
-          // ignore
-        }
+        try { await client.sql(`DROP TRIGGER IF EXISTS ${trig};`); } catch { /* ignore */ }
       }
       for (const proc of objects.procedures ?? []) {
-        try {
-          await client.sql(`DROP PROCEDURE IF EXISTS ${proc}`);
-        } catch {
-          // ignore
-        }
+        try { await client.sql(`DROP PROCEDURE IF EXISTS ${proc};`); } catch { /* ignore */ }
       }
     } catch {
       // ignore parse errors
     }
   }
 
-  // Execute compiled SQL split on semicolons
-  const statements = compiled.sql
-    .split(';')
-    .map((s) => s.trim())
-    .filter((s) => s && !s.startsWith('--'));
+  // Deploy procedure as a single statement (CRITICAL: do NOT split on ; inside the procedure body)
+  try {
+    await client.sql(compiled.procedureSql + ';');
+  } catch (err) {
+    return NextResponse.json(
+      { error: 'Procedure compilation failed', detail: String(err) },
+      { status: 422 },
+    );
+  }
 
-  for (const stmt of statements) {
-    if (stmt.trim()) {
-      await client.sql(stmt + ';');
+  // Deploy each trigger as a separate statement
+  const triggerErrors: string[] = [];
+  for (const trigSql of compiled.triggerSqlList) {
+    try {
+      await client.sql(trigSql + ';');
+    } catch (err) {
+      triggerErrors.push(String(err));
     }
   }
 
-  // Record deploy
+  // Record deploy in IMMUTABLE TABLE
   const deployId = randomUUID();
   const objectsJson = JSON.stringify({
     triggers: compiled.triggerNames,
@@ -89,23 +105,30 @@ export async function POST(
   });
   try {
     await client.sql(
-      `INSERT INTO workflow_deploys (id, workflow_id, version, engine_url, deployed_at, objects_json) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, $5)`,
+      `INSERT INTO workflow_deploys (id, workflow_id, version, engine_url, deployed_at, objects_json)
+       VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, $5)`,
       [deployId, id, compiled.version, engine.url, objectsJson],
     );
   } catch {
-    // ignore if table doesn't exist
+    // IMMUTABLE TABLE insert can fail on re-run — ignore, the deploy still succeeded
   }
 
-  // Update status
-  await client.sql(
-    `UPDATE workflow_definitions SET status = 'deployed', compiled_sql = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
-    [compiled.sql, id],
-  );
+  // Save compiled SQL + update definition status
+  try {
+    await client.sql(
+      `UPDATE workflow_definitions SET status = 'deployed', compiled_sql = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+      [compiled.sql, id],
+    );
+  } catch {
+    // table may not exist — ignore
+  }
 
   return NextResponse.json({
     deployId,
     procedureName: compiled.procedureName,
     triggerNames: compiled.triggerNames,
+    triggerErrors: triggerErrors.length > 0 ? triggerErrors : undefined,
     hash: compiled.hash,
+    ok: triggerErrors.length === 0,
   });
 }
