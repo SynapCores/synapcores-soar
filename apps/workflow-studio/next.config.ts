@@ -9,6 +9,8 @@ let nextConfig: NextConfig = {
   // routes (sidebars accept user-supplied hrefs) and apps may add
   // routes the framework doesn't know about at build time.
   typedRoutes: false,
+  // Standalone output — required by Dockerfile (copies .next/standalone)
+  output: 'standalone',
 
   // Bundle size optimization — NFR-10: < 2.5 MB gzipped excluding React Flow
   experimental: {
@@ -23,8 +25,9 @@ let nextConfig: NextConfig = {
 };
 
 if (ANALYZE) {
-  // Dynamic import so @next/bundle-analyzer is a dev-only dep
-  const withBundleAnalyzer = (await import('@next/bundle-analyzer')).default({
+  // Use require() — next.config.ts does not support top-level await
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const withBundleAnalyzer = (require('@next/bundle-analyzer') as (opts: Record<string, unknown>) => (c: NextConfig) => NextConfig)({
     enabled: true,
     openAnalyzer: false,
   });

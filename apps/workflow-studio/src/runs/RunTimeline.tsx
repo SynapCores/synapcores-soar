@@ -217,6 +217,8 @@ export function RunTimeline({ runId }: { runId: string }) {
       catch { return; }
 
       if (msg.type === 'step_update' || msg.type === 'step_status') {
+        const stepStatus = msg.status as string;
+
         setSteps(prev => {
           const existing = prev.find(s => s.id === msg.stepId);
           if (existing) {
@@ -240,6 +242,15 @@ export function RunTimeline({ runId }: { runId: string }) {
             error: null,
           }];
         });
+
+        // HTTP_EGRESS_CALLOUT: auto-trigger the Node proxy executor for pending_http steps
+        if (stepStatus === 'pending_http') {
+          void fetch(`/api/v1/runs/${runId}/execute-http`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stepId: msg.stepId as string }),
+          }).catch(() => { /* ignore — SSE will pick up the update */ });
+        }
       }
 
       if (msg.type === 'run_complete') {
