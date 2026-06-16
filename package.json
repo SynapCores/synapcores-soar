@@ -17,7 +17,17 @@
     "soar:dev": "pnpm --filter @synapcores/soar dev",
     "soar:build": "pnpm --filter @synapcores/soar build",
     "aml:dev": "pnpm --filter @synapcores/aml dev",
-    "aml:build": "pnpm --filter @synapcores/aml build"
+    "aml:build": "pnpm --filter @synapcores/aml build",
+    "aerospace:dev": "pnpm --filter @synapcores/aerospace-rca dev",
+    "aerospace:bootstrap": "pnpm --filter @synapcores/aerospace-rca bootstrap",
+    "aerospace:seed": "pnpm --filter @synapcores/aerospace-rca seed-demo",
+    "bridge:dev": "pnpm --filter @synapcores/telemetry-bridge dev",
+    "bridge:typecheck": "pnpm --filter @synapcores/telemetry-bridge typecheck",
+    "dev:dcu": "echo 'Open two terminals: `pnpm bridge:dev` (port 4005) and `pnpm aerospace:dev` (port 3005). Or install concurrently and wire it here.'",
+    "studio:dev": "pnpm --filter @synapcores/workflow-studio dev",
+    "studio:build": "pnpm --filter @synapcores/workflow-studio build",
+    "studio:bootstrap": "pnpm --filter @synapcores/workflow-studio bootstrap",
+    "studio:typecheck": "pnpm --filter @synapcores/workflow-studio typecheck"
   },
   "engines": {
     "node": ">=20",

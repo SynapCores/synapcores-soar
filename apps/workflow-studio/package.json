@@ -1,0 +1,46 @@
+{
+  "name": "@synapcores/workflow-studio",
+  "version": "0.1.0-alpha",
+  "description": "SynapCores Workflow Studio — visual agentic workflow builder. Compiles drag-and-drop workflows to SQL and deploys to a SynapCores engine.",
+  "license": "Apache-2.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3010",
+    "build": "next build",
+    "start": "next start --port 3010",
+    "bootstrap": "node ./bin/bootstrap.mjs",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "compile": "node ./bin/workflow-studio.mjs compile",
+    "studio": "node ./bin/workflow-studio.mjs"
+  },
+  "dependencies": {
+    "@synapcores/app-framework": "workspace:*",
+    "@synapcores/workflow-types": "workspace:*",
+    "@xyflow/react": "^12.3.0",
+    "bcryptjs": "^2.4.3",
+    "idb-keyval": "^6.2.1",
+    "immer": "^10.1.1",
+    "lucide-react": "^0.460.0",
+    "next": "^15.0.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hook-form": "^7.53.2",
+    "server-only": "^0.0.1",
+    "shiki": "^1.22.0",
+    "uuid": "^10.0.0",
+    "zod": "^3.23.8",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^22.9.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/uuid": "^10.0.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.14",
+    "typescript": "^5.6.3"
+  }
+}
