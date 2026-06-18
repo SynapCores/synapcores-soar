@@ -59,6 +59,7 @@ export interface WorkflowState {
   finderOpen: boolean;             // ⌘F search-in-canvas
   sampleDataEditorOpen: boolean;   // FR-37 fixture editor
   outputMappingOpen: boolean;      // FR-38 output mapping
+  buildWithAiOpen: boolean;        // Build-with-AI wizard modal
 
   // ── Read-only mode (FR-15) ─────────────────────────────────────────────────
   readOnly: boolean;
@@ -95,6 +96,7 @@ export interface WorkflowState {
   toggleFinder: (open?: boolean) => void;
   toggleSampleDataEditor: (open?: boolean) => void;
   toggleOutputMapping: (open?: boolean) => void;
+  toggleBuildWithAi: (open?: boolean) => void;
   setReadOnly: (v: boolean) => void;
   setSampleData: (data: Record<string, unknown>) => void;
   setValidationIssues: (issues: ValidationIssue[]) => void;
@@ -139,6 +141,7 @@ export const useWorkflowStore = create<WorkflowState>()(
     finderOpen: false,
     sampleDataEditorOpen: false,
     outputMappingOpen: false,
+    buildWithAiOpen: false,
 
     readOnly: false,
     sampleData: {},
@@ -266,6 +269,11 @@ export const useWorkflowStore = create<WorkflowState>()(
     toggleOutputMapping: (open) =>
       set((s) => {
         s.outputMappingOpen = open !== undefined ? open : !s.outputMappingOpen;
+      }),
+
+    toggleBuildWithAi: (open) =>
+      set((s) => {
+        s.buildWithAiOpen = open !== undefined ? open : !s.buildWithAiOpen;
       }),
 
     setReadOnly: (v) =>

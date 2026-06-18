@@ -19,6 +19,7 @@ import {
   Play,
   Lock,
   Unlock,
+  Sparkles,
 } from 'lucide-react';
 import { cn } from '@synapcores/app-framework/ui';
 import { useWorkflowStore } from '@/store/workflow-store';
@@ -285,6 +286,13 @@ export function ToolBar() {
         onClick={() => store.toggleTemplateGallery(true)}
         icon={<LayoutTemplate className="h-3.5 w-3.5" />}
         label="Templates"
+      />
+      <TBtn
+        onClick={() => store.toggleBuildWithAi(true)}
+        icon={<Sparkles className="h-3.5 w-3.5" />}
+        label="Build with AI"
+        variant="primary"
+        title="Generate a workflow from a natural-language description"
       />
 
       <Divider />

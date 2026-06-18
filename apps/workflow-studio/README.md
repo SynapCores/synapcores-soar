@@ -70,6 +70,25 @@ Log in with the seeded admin credentials. You'll land on `/canvas` and can start
 
 ---
 
+## Build with AI
+
+`0.1.0-alpha.2` adds a **Build with AI** wizard. Click the ✨ button in the toolbar, describe the workflow you want in plain English, and the studio asks the SynapCores engine to design it for you:
+
+```
+"When a new row lands in `orders` with status='flagged', call our fraud
+scoring API at https://fraud.example.com/v1/score, and route high-risk
+(>0.8) results to manual approval."
+```
+
+The wizard returns a preview (nodes + edges + warnings). You can **Refine** (re-prompt with the prior workflow plus a change), **Start over**, or **Apply to canvas** — Apply replaces the current canvas via the existing `loadWorkflow` action so undo/redo still works.
+
+How it routes:
+
+- The studio calls its own server route `POST /api/v1/workflows/generate`, which talks to the engine via `SELECT GENERATE_TEXT(...)`.
+- By default that resolves to the engine's native `qwen2.5-coder:7b` — works out of the box on a fresh `docker run synapcores/community:latest`.
+- If you configure `[query.ai_service]` in `gateway.toml` to OpenAI or Anthropic, the engine routes there automatically and the wizard gets the higher-quality output for free.
+- Every node `kind` and required `data` field is **strictly validated** against the workflow schema before the preview renders — hallucinated node types are rejected with a "regenerate" prompt, not silently dropped onto your canvas.
+
 ## Required env vars
 
 | Var | Required | Purpose |

@@ -1,6 +1,6 @@
 {
   "name": "@synapcores/workflow-studio",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "description": "SynapCores Workflow Studio — visual agentic workflow builder. Compiles drag-and-drop workflows to SQL and deploys to a SynapCores engine.",
   "license": "Apache-2.0",
   "private": true,

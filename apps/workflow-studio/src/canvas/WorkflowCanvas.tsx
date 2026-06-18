@@ -29,6 +29,7 @@ import { ToolBar } from './ToolBar';
 import { NodeFinder } from './NodeFinder';
 import { SampleDataEditor } from './SampleDataEditor';
 import { OutputMappingPanel } from './OutputMappingPanel';
+import { BuildWithAiModal } from './BuildWithAiModal';
 import { useAutosave } from '@/lib/autosave';
 import type { WorkflowNode, WorkflowEdge, DataType } from '@synapcores/workflow-types';
 import { NODE_CATEGORIES } from '@synapcores/workflow-types';
@@ -479,6 +480,9 @@ export function WorkflowCanvas() {
 
       {/* Output mapping panel (FR-38) */}
       <OutputMappingPanel />
+
+      {/* Build-with-AI wizard modal */}
+      <BuildWithAiModal />
     </div>
   );
 }
