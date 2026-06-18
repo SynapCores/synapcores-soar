@@ -18,7 +18,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { createHash } from 'node:crypto';
+import bcrypt from 'bcryptjs';
 
 const baseUrl = (process.env.SYNAPCORES_URL ?? 'http://127.0.0.1:28080').replace(/\/+$/, '');
 const apiKey =
@@ -256,16 +256,16 @@ async function main() {
     if (Number(count) === 0) {
       const email = process.env.STUDIO_ADMIN_EMAIL ?? 'admin@localhost';
       const password = process.env.STUDIO_ADMIN_PASSWORD ?? 'change-me-now';
-      // Simple SHA-256 hash for the bootstrap password (production would use bcrypt,
-      // but bcrypt isn't available as a plain ESM import without the binary).
-      // The Auth.js credentials provider uses bcrypt — seed this with the bcrypt hash
-      // of the password instead if you're using the full auth stack.
-      const hash = createHash('sha256').update(password).digest('hex');
+      // The Auth.js credentials provider verifies with bcrypt.compare(); seed
+      // with bcrypt.hashSync so the first login actually works. (Pre-alpha.1
+      // builds wrote a SHA-256 digest here — verifyPassword would reject it
+      // and every fresh bootstrap produced an admin that couldn't log in.)
+      const hash = bcrypt.hashSync(password, 10);
       const userId = randomUUID();
       await execParam(
         `INSERT INTO users (id, email, name, password_hash, email_verified, created_at, updated_at)
          VALUES ($1, $2, $3, $4, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-        [userId, email, 'Admin', `sha256:${hash}`],
+        [userId, email, 'Admin', hash],
       );
       console.log(`[workflow-studio-bootstrap] created default admin: ${email}`);
       console.log('[workflow-studio-bootstrap] IMPORTANT: change this password before production use!');

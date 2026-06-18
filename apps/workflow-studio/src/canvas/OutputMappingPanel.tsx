@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { X, ArrowRight } from 'lucide-react';
 import { cn } from '@synapcores/app-framework/ui';
 import { useWorkflowStore } from '@/store/workflow-store';
+import { useShallow } from 'zustand/react/shallow';
 import type { DataType } from '@synapcores/workflow-types';
 
 const DATA_TYPE_COLOR: Record<DataType | string, string> = {
@@ -31,13 +32,13 @@ interface EdgeMapping {
 
 export function OutputMappingPanel() {
   const { outputMappingOpen, toggleOutputMapping, nodes, edges, setEdges } =
-    useWorkflowStore((s) => ({
+    useWorkflowStore(useShallow((s) => ({
       outputMappingOpen: s.outputMappingOpen,
       toggleOutputMapping: s.toggleOutputMapping,
       nodes: s.nodes,
       edges: s.edges,
       setEdges: s.setEdges,
-    }));
+    })));
 
   // Build edge mapping view
   const edgeMappings: EdgeMapping[] = edges.map((e) => {

@@ -28,7 +28,11 @@ import type {
 } from './types';
 
 const credentialsSchema = z.object({
-  email: z.string().email(),
+  // Use a permissive `local@host` regex instead of z.string().email()
+  // — Zod's strict email validator requires a TLD, so the framework's
+  // own default admin@localhost user fails to log in. This regex
+  // accepts admin@localhost AND every standard internet email.
+  email: z.string().regex(/^[^\s@]+@[^\s@]+$/, 'Invalid email'),
   password: z.string().min(8),
 });
 
@@ -59,10 +63,12 @@ export function createAuth(
         async authorize(raw) {
           const parsed = credentialsSchema.safeParse(raw);
           if (!parsed.success) return null;
-          const user = await verifyPassword(
-            parsed.data.email,
-            parsed.data.password,
-          );
+          let user;
+          try {
+            user = await verifyPassword(parsed.data.email, parsed.data.password);
+          } catch {
+            return null;
+          }
           return user ? { id: user.id, email: user.email, name: user.name } : null;
         },
       }),

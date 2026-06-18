@@ -35,11 +35,16 @@ export default async function LoginPage({
     'use server';
     const email = String(formData.get('email') ?? '');
     const password = String(formData.get('password') ?? '');
+    // Auth.js v5 (beta.25) has a known issue where passing `redirectTo`
+    // to a server-action signIn() causes the NEXT_REDIRECT to be
+    // re-classified as CredentialsSignin. Work around by signing in
+    // WITHOUT redirectTo, then redirect ourselves.
     await signIn('credentials', {
       email,
       password,
-      redirectTo: '/',
+      redirect: false,
     });
+    redirect('/');
   }
 
   /** Magic-link path: mint a token + email it, then route to /login/verify. */

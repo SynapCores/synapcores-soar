@@ -18,6 +18,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useWorkflowStore } from '@/store/workflow-store';
+import { useShallow } from 'zustand/react/shallow';
 import { NODE_TYPES } from '@/nodes';
 import { NodePalette } from './NodePalette';
 import { NodeInspector } from './NodeInspector';
@@ -94,7 +95,7 @@ export function WorkflowCanvas() {
     workflowMeta,
     nodes,
     edges,
-  } = useWorkflowStore((s) => ({
+  } = useWorkflowStore(useShallow((s) => ({
     nodes: s.nodes,
     edges: s.edges,
     setNodes: s.setNodes,
@@ -120,7 +121,7 @@ export function WorkflowCanvas() {
     workflowMeta: s.workflowMeta,
     storeNodes: s.nodes,
     storeEdges: s.edges,
-  }));
+  })));
 
   // ── Local React Flow state synced with store ─────────────────────────────
 

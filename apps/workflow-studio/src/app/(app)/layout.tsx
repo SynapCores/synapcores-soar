@@ -1,10 +1,16 @@
-import { DashboardLayout, SidebarIcons, FRAMEWORK_SIDEBAR_SECTION } from '@synapcores/app-framework';
+import { DashboardLayout, SidebarIcons } from '@synapcores/app-framework';
 import { requireSession } from '@/lib/session';
 import { signOut } from '@/lib/auth';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await requireSession();
 
+  // #381: drop FRAMEWORK_SIDEBAR_SECTION here — the framework default
+  // surfaces /audit and /team (used by SOAR + AML), but workflow-studio
+  // doesn't implement those routes, so the links 404. /settings is
+  // included below as "Engine Settings". File a framework follow-up
+  // to make FRAMEWORK_SIDEBAR_SECTION items individually opt-out-able
+  // rather than each app overriding the sidebar wholesale.
   const studioSidebar = {
     heading: 'Workflow Studio',
     items: [
@@ -23,7 +29,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <DashboardLayout
       brand={{ label: 'Workflow Studio', href: '/canvas' }}
-      sidebar={[studioSidebar, FRAMEWORK_SIDEBAR_SECTION]}
+      sidebar={[studioSidebar]}
       session={{
         user: { name: session.user.name, email: session.user.email },
         tenant: session.tenant ? { name: session.tenant.name } : null,

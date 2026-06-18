@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@synapcores/app-framework/ui';
 import { useWorkflowStore } from '@/store/workflow-store';
+import { useShallow } from 'zustand/react/shallow';
 import { validateWorkflow } from '@/compiler/validate';
 import type { WorkflowDefinition } from '@synapcores/workflow-types';
 
@@ -81,7 +82,7 @@ const STATUS_STYLES: Record<string, string> = {
 // ── Main toolbar ──────────────────────────────────────────────────────────────
 
 export function ToolBar() {
-  const store = useWorkflowStore((s) => s);
+  const store = useWorkflowStore(useShallow((s) => s));
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const fileInputRef = useRef<HTMLInputElement>(null);
 

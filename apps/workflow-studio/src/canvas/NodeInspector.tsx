@@ -5,6 +5,7 @@ import { useForm, useFieldArray, type FieldValues, type UseFormReturn } from 're
 import { X, Trash2, Plus } from 'lucide-react';
 import { cn } from '@synapcores/app-framework/ui';
 import { useWorkflowStore } from '@/store/workflow-store';
+import { useShallow } from 'zustand/react/shallow';
 import type { WorkflowNodeData } from '@synapcores/workflow-types';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -344,7 +345,7 @@ function ReturnForm({ form }: { form: AnyForm }) {
 
 export function NodeInspector() {
   const { inspectorOpen, selectedNodeId, nodes, toggleInspector, selectNode, removeNode, updateNodeData } =
-    useWorkflowStore((s) => ({
+    useWorkflowStore(useShallow((s) => ({
       inspectorOpen: s.inspectorOpen,
       selectedNodeId: s.selectedNodeId,
       nodes: s.nodes,
@@ -352,7 +353,7 @@ export function NodeInspector() {
       selectNode: s.selectNode,
       removeNode: s.removeNode,
       updateNodeData: s.updateNodeData,
-    }));
+    })));
 
   const selectedNode = selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) : null;
   const nodeData = selectedNode?.data as WorkflowNodeData | undefined;

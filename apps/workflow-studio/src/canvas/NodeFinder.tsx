@@ -8,6 +8,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, X } from 'lucide-react';
 import { cn } from '@synapcores/app-framework/ui';
 import { useWorkflowStore } from '@/store/workflow-store';
+import { useShallow } from 'zustand/react/shallow';
 import { NODE_CATEGORIES } from '@synapcores/workflow-types';
 import type { WorkflowNode } from '@synapcores/workflow-types';
 
@@ -28,13 +29,13 @@ function matchesQuery(node: WorkflowNode, q: string): boolean {
 }
 
 export function NodeFinder() {
-  const { finderOpen, toggleFinder, nodes, selectNode, toggleInspector } = useWorkflowStore((s) => ({
+  const { finderOpen, toggleFinder, nodes, selectNode, toggleInspector } = useWorkflowStore(useShallow((s) => ({
     finderOpen: s.finderOpen,
     toggleFinder: s.toggleFinder,
     nodes: s.nodes,
     selectNode: s.selectNode,
     toggleInspector: s.toggleInspector,
-  }));
+  })));
 
   const [query, setQuery] = useState('');
   const [activeIdx, setActiveIdx] = useState(0);
