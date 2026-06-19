@@ -23,7 +23,6 @@ import {
 } from 'lucide-react';
 import { cn } from '@synapcores/app-framework/ui';
 import { useWorkflowStore } from '@/store/workflow-store';
-import { useShallow } from 'zustand/react/shallow';
 import { validateWorkflow } from '@/compiler/validate';
 import type { WorkflowDefinition } from '@synapcores/workflow-types';
 
@@ -83,7 +82,47 @@ const STATUS_STYLES: Record<string, string> = {
 // ── Main toolbar ──────────────────────────────────────────────────────────────
 
 export function ToolBar() {
-  const store = useWorkflowStore(useShallow((s) => s));
+  // Individual primitive selectors — see WorkflowCanvas for the rationale.
+  // Object-shallow selectors trip React 19's getSnapshot infinite-loop guard.
+  const workflowId = useWorkflowStore((s) => s.workflowId);
+  const version = useWorkflowStore((s) => s.version);
+  const workflowMeta = useWorkflowStore((s) => s.workflowMeta);
+  const nodes = useWorkflowStore((s) => s.nodes);
+  const edges = useWorkflowStore((s) => s.edges);
+  const status = useWorkflowStore((s) => s.status);
+  const isDirty = useWorkflowStore((s) => s.isDirty);
+  const history = useWorkflowStore((s) => s.history);
+  const historyIndex = useWorkflowStore((s) => s.historyIndex);
+  const validationIssues = useWorkflowStore((s) => s.validationIssues);
+  const isValidating = useWorkflowStore((s) => s.isValidating);
+  const compiledSql = useWorkflowStore((s) => s.compiledSql);
+  const sampleData = useWorkflowStore((s) => s.sampleData);
+  const engineConnected = useWorkflowStore((s) => s.engineConnected);
+  const activeEngineId = useWorkflowStore((s) => s.activeEngineId);
+  const readOnly = useWorkflowStore((s) => s.readOnly);
+  const newWorkflow = useWorkflowStore((s) => s.newWorkflow);
+  const loadWorkflow = useWorkflowStore((s) => s.loadWorkflow);
+  const undo = useWorkflowStore((s) => s.undo);
+  const redo = useWorkflowStore((s) => s.redo);
+  const setWorkflowMeta = useWorkflowStore((s) => s.setWorkflowMeta);
+  const setIsValidating = useWorkflowStore((s) => s.setIsValidating);
+  const setValidationIssues = useWorkflowStore((s) => s.setValidationIssues);
+  const setCompiledSql = useWorkflowStore((s) => s.setCompiledSql);
+  const setReadOnly = useWorkflowStore((s) => s.setReadOnly);
+  const toggleSqlPreview = useWorkflowStore((s) => s.toggleSqlPreview);
+  const toggleTemplateGallery = useWorkflowStore((s) => s.toggleTemplateGallery);
+  const toggleSampleDataEditor = useWorkflowStore((s) => s.toggleSampleDataEditor);
+  const toggleOutputMapping = useWorkflowStore((s) => s.toggleOutputMapping);
+  const toggleBuildWithAi = useWorkflowStore((s) => s.toggleBuildWithAi);
+  const store = {
+    workflowId, version, workflowMeta, nodes, edges, status, isDirty,
+    history, historyIndex, validationIssues, isValidating, compiledSql,
+    sampleData, engineConnected, activeEngineId, readOnly,
+    newWorkflow, loadWorkflow, undo, redo,
+    setWorkflowMeta, setIsValidating, setValidationIssues, setCompiledSql, setReadOnly,
+    toggleSqlPreview, toggleTemplateGallery, toggleSampleDataEditor,
+    toggleOutputMapping, toggleBuildWithAi,
+  };
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const fileInputRef = useRef<HTMLInputElement>(null);
 

@@ -3,7 +3,6 @@
 import { X } from 'lucide-react';
 import { cn } from '@synapcores/app-framework/ui';
 import { useWorkflowStore } from '@/store/workflow-store';
-import { useShallow } from 'zustand/react/shallow';
 import type { WorkflowDefinition, WorkflowNode, WorkflowEdge } from '@synapcores/workflow-types';
 
 // ── Template definitions ──────────────────────────────────────────────────────
@@ -188,11 +187,9 @@ function TemplateCard({ tpl, onUse }: { tpl: TemplateEntry; onUse: () => void })
 // ── Main gallery modal ────────────────────────────────────────────────────────
 
 export function TemplateGallery() {
-  const { templateGalleryOpen, toggleTemplateGallery, loadWorkflow } = useWorkflowStore(useShallow((s) => ({
-    templateGalleryOpen: s.templateGalleryOpen,
-    toggleTemplateGallery: s.toggleTemplateGallery,
-    loadWorkflow: s.loadWorkflow,
-  })));
+  const templateGalleryOpen = useWorkflowStore((s) => s.templateGalleryOpen);
+  const toggleTemplateGallery = useWorkflowStore((s) => s.toggleTemplateGallery);
+  const loadWorkflow = useWorkflowStore((s) => s.loadWorkflow);
 
   if (!templateGalleryOpen) return null;
 

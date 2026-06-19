@@ -20,7 +20,7 @@ const DEFAULT_META: WorkflowMeta = {
   description: '',
   tags: [],
   targetEngineId: 'default',
-  minEngineVersion: '1.8.5',
+  minEngineVersion: '1.8.7',
 };
 
 // ── Clipboard snapshot ────────────────────────────────────────────────────────

@@ -11,7 +11,7 @@ const BodySchema = z.object({
 });
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export async function POST(request: Request) {
   // Auth — only signed-in users can invoke the generator (it consumes
@@ -69,5 +69,8 @@ export async function POST(request: Request) {
     workflow: result.workflow,
     summary: result.summary,
     warnings: result.warnings,
+    ...(process.env.NODE_ENV !== 'production' && result.raw
+      ? { raw: result.raw.slice(0, 8000) }
+      : {}),
   });
 }

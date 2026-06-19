@@ -1,11 +1,21 @@
 import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import { I18nProviderComponent } from '@/lib/i18n';
+
+// Self-hosted via next/font so headless browsers (Playwright recordings,
+// puppeteer screenshots) get the typeface without needing system fonts.
+// Falls back through system-ui chain when offline.
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-sans',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'SynapCores Workflow Studio',
   description: 'Visual agentic workflow builder for SynapCores',
-  robots: { index: false }, // private app — homepage carries the marketing surface
+  robots: { index: false },
 };
 
 export default function RootLayout({
@@ -14,11 +24,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className="antialiased">
-        {/* I18nProviderComponent loads /locales/en/common.json client-side.
-            Server components and static text use the key-passthrough t() function.
-            Future: pass locale from cookie/header for multi-language support. */}
+    <html lang="en" className={`dark ${inter.variable}`}>
+      <body className={`${inter.className} antialiased`}>
         <I18nProviderComponent locale="en">
           {children}
         </I18nProviderComponent>

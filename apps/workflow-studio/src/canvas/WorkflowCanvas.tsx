@@ -18,7 +18,6 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useWorkflowStore } from '@/store/workflow-store';
-import { useShallow } from 'zustand/react/shallow';
 import { NODE_TYPES } from '@/nodes';
 import { NodePalette } from './NodePalette';
 import { NodeInspector } from './NodeInspector';
@@ -70,59 +69,35 @@ export function WorkflowCanvas() {
   // Wire autosave
   useAutosave();
 
-  const {
-    nodes: storeNodes,
-    edges: storeEdges,
-    setNodes: storeSetNodes,
-    setEdges: storeSetEdges,
-    addNode,
-    addEdge: storeAddEdge,
-    removeNode,
-    removeEdge: storeRemoveEdge,
-    selectNode,
-    setSelectedNodeIds,
-    selectedNodeId,
-    selectedNodeIds,
-    toggleInspector,
-    paletteOpen,
-    readOnly,
-    copySelected,
-    pasteClipboard,
-    toggleFinder,
-    undo,
-    redo,
-    workflowId,
-    version,
-    workflowMeta,
-    nodes,
-    edges,
-  } = useWorkflowStore(useShallow((s) => ({
-    nodes: s.nodes,
-    edges: s.edges,
-    setNodes: s.setNodes,
-    setEdges: s.setEdges,
-    addNode: s.addNode,
-    addEdge: s.addEdge,
-    removeNode: s.removeNode,
-    removeEdge: s.removeEdge,
-    selectNode: s.selectNode,
-    setSelectedNodeIds: s.setSelectedNodeIds,
-    selectedNodeId: s.selectedNodeId,
-    selectedNodeIds: s.selectedNodeIds,
-    toggleInspector: s.toggleInspector,
-    paletteOpen: s.paletteOpen,
-    readOnly: s.readOnly,
-    copySelected: s.copySelected,
-    pasteClipboard: s.pasteClipboard,
-    toggleFinder: s.toggleFinder,
-    undo: s.undo,
-    redo: s.redo,
-    workflowId: s.workflowId,
-    version: s.version,
-    workflowMeta: s.workflowMeta,
-    storeNodes: s.nodes,
-    storeEdges: s.edges,
-  })));
+  // Individual primitive selectors only. Returning an object via useShallow
+  // trips React 19's "getSnapshot should be cached" guard (memoization isn't
+  // stable across the SSR/hydration boundary), which produces an infinite
+  // render loop and leaves the page stuck on the loading fallback.
+  const storeNodes = useWorkflowStore((s) => s.nodes);
+  const storeEdges = useWorkflowStore((s) => s.edges);
+  const nodes = storeNodes;
+  const edges = storeEdges;
+  const storeSetNodes = useWorkflowStore((s) => s.setNodes);
+  const storeSetEdges = useWorkflowStore((s) => s.setEdges);
+  const addNode = useWorkflowStore((s) => s.addNode);
+  const storeAddEdge = useWorkflowStore((s) => s.addEdge);
+  const removeNode = useWorkflowStore((s) => s.removeNode);
+  const storeRemoveEdge = useWorkflowStore((s) => s.removeEdge);
+  const selectNode = useWorkflowStore((s) => s.selectNode);
+  const setSelectedNodeIds = useWorkflowStore((s) => s.setSelectedNodeIds);
+  const selectedNodeId = useWorkflowStore((s) => s.selectedNodeId);
+  const selectedNodeIds = useWorkflowStore((s) => s.selectedNodeIds);
+  const toggleInspector = useWorkflowStore((s) => s.toggleInspector);
+  const paletteOpen = useWorkflowStore((s) => s.paletteOpen);
+  const readOnly = useWorkflowStore((s) => s.readOnly);
+  const copySelected = useWorkflowStore((s) => s.copySelected);
+  const pasteClipboard = useWorkflowStore((s) => s.pasteClipboard);
+  const toggleFinder = useWorkflowStore((s) => s.toggleFinder);
+  const undo = useWorkflowStore((s) => s.undo);
+  const redo = useWorkflowStore((s) => s.redo);
+  const workflowId = useWorkflowStore((s) => s.workflowId);
+  const version = useWorkflowStore((s) => s.version);
+  const workflowMeta = useWorkflowStore((s) => s.workflowMeta);
 
   // ── Local React Flow state synced with store ─────────────────────────────
 
@@ -380,7 +355,25 @@ export function WorkflowCanvas() {
   }, [readOnly]);
 
   return (
-    <div className="relative h-full w-full bg-slate-950">
+    <div className="relative h-full w-full overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
+      {/* Vivid floating orbs — mirrors the gateway WelcomeSplash atmosphere. */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute top-10 left-10 h-40 w-40 rounded-full bg-blue-400/20 blur-3xl animate-pulse" />
+        <div className="absolute top-32 right-24 h-56 w-56 rounded-full bg-cyan-400/20 blur-3xl animate-pulse [animation-delay:1s]" />
+        <div className="absolute bottom-20 left-1/3 h-48 w-48 rounded-full bg-indigo-500/25 blur-3xl animate-pulse [animation-delay:2s]" />
+        <div className="absolute bottom-32 right-16 h-44 w-44 rounded-full bg-sky-400/20 blur-3xl animate-pulse [animation-delay:500ms]" />
+        <div className="absolute top-1/2 left-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-600/15 blur-3xl animate-pulse [animation-delay:1500ms]" />
+      </div>
+      {/* Dot-grid overlay — same as gateway hero. */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-15"
+        style={{
+          backgroundImage:
+            'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.18) 1px, transparent 0)',
+          backgroundSize: '20px 20px',
+        }}
+      />
+
       {/* Toolbar at very top */}
       <div className="absolute top-0 left-0 right-0 z-30">
         <ToolBar />
@@ -411,16 +404,16 @@ export function WorkflowCanvas() {
           nodesConnectable={!readOnly}
           elementsSelectable={!readOnly}
           defaultEdgeOptions={{
-            style: { stroke: '#475569', strokeWidth: 1.5 },
-            markerEnd: { type: 'arrowclosed' as const, color: '#475569' },
+            style: { stroke: '#94a3b8', strokeWidth: 1.5 },
+            markerEnd: { type: 'arrowclosed' as const, color: '#94a3b8' },
           }}
-          style={{ background: '#020617' }}
+          style={{ background: 'transparent' }}
         >
           <Background
             variant={BackgroundVariant.Dots}
             gap={24}
             size={1}
-            color="#1e293b"
+            color="rgba(255,255,255,0.06)"
           />
           <Controls
             className="!bottom-16 !left-[264px]"

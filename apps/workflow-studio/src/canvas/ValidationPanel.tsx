@@ -3,13 +3,10 @@
 import { AlertTriangle, AlertCircle, CheckCircle2, X } from 'lucide-react';
 import { cn } from '@synapcores/app-framework/ui';
 import { useWorkflowStore } from '@/store/workflow-store';
-import { useShallow } from 'zustand/react/shallow';
 
 export function ValidationPanel() {
-  const { validationIssues, selectNode } = useWorkflowStore(useShallow((s) => ({
-    validationIssues: s.validationIssues,
-    selectNode: s.selectNode,
-  })));
+  const validationIssues = useWorkflowStore((s) => s.validationIssues);
+  const selectNode = useWorkflowStore((s) => s.selectNode);
 
   if (validationIssues.length === 0) return null;
 

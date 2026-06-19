@@ -24,7 +24,6 @@ import { NODE_CATEGORIES } from '@synapcores/workflow-types';
 import type { NodeCategoryEntry } from '@synapcores/workflow-types';
 import { cn } from '@synapcores/app-framework/ui';
 import { useWorkflowStore } from '@/store/workflow-store';
-import { useShallow } from 'zustand/react/shallow';
 
 // ── Icon map ───────────────────────────────────────────────────────────────────
 
@@ -133,10 +132,8 @@ function CategorySection({
 // ── Main palette ───────────────────────────────────────────────────────────────
 
 export function NodePalette() {
-  const { paletteOpen, togglePalette } = useWorkflowStore(useShallow((s) => ({
-    paletteOpen: s.paletteOpen,
-    togglePalette: s.togglePalette,
-  })));
+  const paletteOpen = useWorkflowStore((s) => s.paletteOpen);
+  const togglePalette = useWorkflowStore((s) => s.togglePalette);
 
   const [search, setSearch] = useState('');
 

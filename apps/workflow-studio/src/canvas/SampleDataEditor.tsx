@@ -7,7 +7,6 @@
 import { useState, useEffect } from 'react';
 import { X, AlertCircle, CheckCircle } from 'lucide-react';
 import { useWorkflowStore } from '@/store/workflow-store';
-import { useShallow } from 'zustand/react/shallow';
 
 function isValidJson(str: string): boolean {
   if (!str.trim()) return true;
@@ -20,13 +19,10 @@ function isValidJson(str: string): boolean {
 }
 
 export function SampleDataEditor() {
-  const { sampleDataEditorOpen, toggleSampleDataEditor, sampleData, setSampleData } =
-    useWorkflowStore(useShallow((s) => ({
-      sampleDataEditorOpen: s.sampleDataEditorOpen,
-      toggleSampleDataEditor: s.toggleSampleDataEditor,
-      sampleData: s.sampleData,
-      setSampleData: s.setSampleData,
-    })));
+  const sampleDataEditorOpen = useWorkflowStore((s) => s.sampleDataEditorOpen);
+  const toggleSampleDataEditor = useWorkflowStore((s) => s.toggleSampleDataEditor);
+  const sampleData = useWorkflowStore((s) => s.sampleData);
+  const setSampleData = useWorkflowStore((s) => s.setSampleData);
 
   const [text, setText] = useState('');
   const [parseError, setParseError] = useState(false);

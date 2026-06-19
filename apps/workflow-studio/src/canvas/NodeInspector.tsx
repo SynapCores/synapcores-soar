@@ -5,7 +5,6 @@ import { useForm, useFieldArray, type FieldValues, type UseFormReturn } from 're
 import { X, Trash2, Plus } from 'lucide-react';
 import { cn } from '@synapcores/app-framework/ui';
 import { useWorkflowStore } from '@/store/workflow-store';
-import { useShallow } from 'zustand/react/shallow';
 import type { WorkflowNodeData } from '@synapcores/workflow-types';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -344,16 +343,13 @@ function ReturnForm({ form }: { form: AnyForm }) {
 // ── Main inspector component ──────────────────────────────────────────────────
 
 export function NodeInspector() {
-  const { inspectorOpen, selectedNodeId, nodes, toggleInspector, selectNode, removeNode, updateNodeData } =
-    useWorkflowStore(useShallow((s) => ({
-      inspectorOpen: s.inspectorOpen,
-      selectedNodeId: s.selectedNodeId,
-      nodes: s.nodes,
-      toggleInspector: s.toggleInspector,
-      selectNode: s.selectNode,
-      removeNode: s.removeNode,
-      updateNodeData: s.updateNodeData,
-    })));
+  const inspectorOpen = useWorkflowStore((s) => s.inspectorOpen);
+  const selectedNodeId = useWorkflowStore((s) => s.selectedNodeId);
+  const nodes = useWorkflowStore((s) => s.nodes);
+  const toggleInspector = useWorkflowStore((s) => s.toggleInspector);
+  const selectNode = useWorkflowStore((s) => s.selectNode);
+  const removeNode = useWorkflowStore((s) => s.removeNode);
+  const updateNodeData = useWorkflowStore((s) => s.updateNodeData);
 
   const selectedNode = selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) : null;
   const nodeData = selectedNode?.data as WorkflowNodeData | undefined;

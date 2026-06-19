@@ -4,17 +4,13 @@ import { useCallback } from 'react';
 import { Copy, Download, X, Code2 } from 'lucide-react';
 import { cn } from '@synapcores/app-framework/ui';
 import { useWorkflowStore } from '@/store/workflow-store';
-import { useShallow } from 'zustand/react/shallow';
 
 export function SqlPreviewPane() {
-  const { compiledSql, compiledAt, sqlPreviewOpen, toggleSqlPreview, workflowMeta } =
-    useWorkflowStore(useShallow((s) => ({
-      compiledSql: s.compiledSql,
-      compiledAt: s.compiledAt,
-      sqlPreviewOpen: s.sqlPreviewOpen,
-      toggleSqlPreview: s.toggleSqlPreview,
-      workflowMeta: s.workflowMeta,
-    })));
+  const compiledSql = useWorkflowStore((s) => s.compiledSql);
+  const compiledAt = useWorkflowStore((s) => s.compiledAt);
+  const sqlPreviewOpen = useWorkflowStore((s) => s.sqlPreviewOpen);
+  const toggleSqlPreview = useWorkflowStore((s) => s.toggleSqlPreview);
+  const workflowMeta = useWorkflowStore((s) => s.workflowMeta);
 
   const copyToClipboard = useCallback(() => {
     if (compiledSql) {
