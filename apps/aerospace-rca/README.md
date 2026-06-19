@@ -17,10 +17,11 @@ breakdown.
 ## Quick start
 
 ```sh
-# 0. Make sure SynapCores AIDB is up (this build talks to port 8081 by
-#    default — the v1.8.1-ce build with native llama.cpp + ollama-name
-#    model registry and a working EMBED/AGENT_RUN surface).
-curl -s http://127.0.0.1:8081/health   # expect {"status":"ok",...}
+# 0. Make sure a SynapCores engine is running. The demo's .env.example
+#    targets the canonical Docker port 28080. Any SynapCores v1.8.6+
+#    engine works.
+docker run --rm -d -p 28080:28080 --name synapcores synapcores/community:latest
+curl -s http://127.0.0.1:28080/health   # expect {"status":"ok",...}
 
 # 1. Install workspace deps from the monorepo root
 cd ../..
@@ -44,24 +45,14 @@ open http://localhost:3005/demo
 
 ## Engine targeting
 
-The task spec named port 8080 for an engine of version v1.8.2-ce. The
-engine listening there at the time of build was an older v1.5-class
-build whose `EMBED()` call hits a HuggingFace cache it can't write
-to (running as `synapcores` user under systemd). The actively
-maintained v1.8.1-ce build is on port **8081** with a working
-`[query.ai_service]` pointing at `library/all-minilm:latest` +
-`qwen2.5-coder:7b`, real `EMBED()`, real `AGENT_RUN()`, real
-`CREATE IMMUTABLE TABLE`, real Cypher-style `MATCH` patterns alongside
-SQL. The app's `.env.local` points at 8081 by default. If the user
-brings the v1.8.2 engine up on 8080 with the same config and a
-JWT-signing secret matching the demo user, swap `SYNAPCORES_URL` and
-re-run bootstrap.
+Targets any SynapCores Community Edition engine `v1.8.6` or later. The
+demo's `.env.example` defaults to `http://127.0.0.1:28080`, which is the
+canonical port for `docker run synapcores/community:latest`. If your
+engine is elsewhere, override `SYNAPCORES_URL` in `.env.local`.
 
-The bundled `.env.local` includes a 24h JWT minted against the v1.8.1
-engine's `lli0VD8NODjc14DAMWs1aojEZqhZFZRIT1r8VTwuhVo=` signing secret.
-For longer-lived demos, register a fresh user via
-`POST /v1/auth/register` and paste the access_token into
-`SYNAPCORES_ADMIN_API_KEY`.
+The bundled `.env.local` includes a JWT for the seeded demo tenant. For
+production / longer-lived demos, mint a fresh token against your engine's
+configured signing secret and paste it into `SYNAPCORES_ADMIN_API_KEY`.
 
 ## What works
 
@@ -236,8 +227,10 @@ spreading.
   in-memory. We don't pretend AIDB is doing that rate of writes.
 - Default `DCU_AGGREGATE_PERIOD_MS=5000` (0.2Hz). Flip to 1000 in
   `apps/telemetry-bridge/.env.local` if your engine box absorbs it.
-- The bridge uses pagination to load all 3000 sensors from AIDB
-  because v1.8.1-ce's SQL_MAX_ROW_COUNT caps SELECT results at 1000.
+- The engine defaults `SQL_MAX_ROW_COUNT` to 1000. The bridge passes
+  `max_rows: 5000` in its sensor-registry load to override per-request,
+  so the 3000-channel load completes in one round-trip. Operators can
+  also set `SQL_MAX_ROW_COUNT` on the engine to raise the default.
 - `EMBED()` runs synchronously on the anomaly INSERT inside the
   alert handler, so the first promotion adds ~100ms of latency to
   that one alert. Subsequent alerts on already-warm embeddings are
@@ -249,12 +242,7 @@ spreading.
    `DELETE FROM evidence_chain`. `bin/seed-demo.mjs` and the
    `/api/v1/demo/reset` route work around it by `DROP TABLE` +
    re-create. Documented in the reset route.
-2. *Engine v1.8.x `MATCH` accepts no `[r:TYPE]` arrow in some patterns.*
-   The graph fingerprint query stitches multiple smaller MATCH
-   statements together TS-side rather than relying on one big
-   variable-length pattern. Defensive and avoids brittle engine
-   behavior.
-3. *`AGENT_RUN` ReAct loop is too slow + too tool-eager for the
+2. *`AGENT_RUN` ReAct loop is too slow + too tool-eager for the
    16-second Act 4 budget.* Solved by making the deterministic SQL
    finding the truth layer, and using `AGENT_RUN` only as a background
    prose layer that's nice-to-have.
