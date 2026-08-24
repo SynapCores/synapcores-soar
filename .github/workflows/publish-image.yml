@@ -73,7 +73,13 @@ jobs:
 
       # The Hub listing page renders its own README, separate from the repo's.
       # Without this step it stays empty and the image looks abandoned.
-      - name: Sync the Docker Hub description
+      # Best-effort: editing a Hub repo description needs a token with admin
+      # scope on the repo, while pushing images only needs read/write. With a
+      # push-scoped token this returns 403 "insufficient scope". That must not
+      # fail an otherwise-good release, so the step is advisory until the token
+      # is upgraded in Docker Hub -> Account Settings -> Personal access tokens.
+      - name: Sync the Docker Hub description (best effort)
+        continue-on-error: true
         uses: peter-evans/dockerhub-description@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
