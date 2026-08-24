@@ -18,7 +18,10 @@ version: '3.9'
 
 services:
   synapcores:
-    image: synapcores/community:v1.7.0.1-ce
+    image: synapcores/community:${SYNAPCORES_TAG:-v1.14.5-ce}
+    # A floating tag only re-resolves on an explicit pull; without this a host
+    # keeps whatever it first cached. Pin via SYNAPCORES_TAG to freeze it.
+    pull_policy: missing
     container_name: synapcores-engine
     environment:
       AIDB_ACCEPT_LICENSE: '1'
@@ -35,15 +38,15 @@ services:
     restart: unless-stopped
 
   soar:
-    image: node:22-alpine
+    # Published image by default; `docker compose build soar` builds from source.
+    image: ${SOAR_APP_IMAGE:-ghcr.io/synapcores/soar:latest}
+    build:
+      context: .
+      dockerfile: apps/soar/Dockerfile
     container_name: synapcores-soar-app
     depends_on:
       synapcores:
         condition: service_healthy
-    working_dir: /app
-    volumes:
-      - ./:/app
-      - sc-soar-app-cache:/app/.next
     environment:
       SYNAPCORES_URL: http://synapcores:8080
       SYNAPCORES_ADMIN_API_KEY: ${SYNAPCORES_ADMIN_API_KEY:?Set SYNAPCORES_ADMIN_API_KEY in .env}
@@ -54,14 +57,9 @@ services:
       SOAR_TRIAGE_MODE: ${SOAR_TRIAGE_MODE:-auto}
     ports:
       - '3001:3001'
-    command: >
-      sh -c "
-        corepack enable && corepack prepare pnpm@9 --activate &&
-        pnpm install --frozen-lockfile &&
-        pnpm framework:bootstrap &&
-        pnpm soar:bootstrap &&
-        pnpm soar:dev
-      "
+    # No command override: the image entrypoint waits for the engine, applies
+    # both schemas, then runs the Next.js PRODUCTION server. The old inline
+    # command installed dependencies at every start and served `next dev`.
     restart: unless-stopped
 
   aml:
