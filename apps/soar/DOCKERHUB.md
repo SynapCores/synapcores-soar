@@ -2,24 +2,55 @@
 
 **Open-source autonomous SOC platform.** Tier-1 triage agents, immutable audit trail, MCP examiner portal. Self-hostable on a single Docker host — an alternative to Tines, Torq, and Cortex XSOAR that runs on your hardware.
 
-This image is the SOAR web application. It needs a SynapCores engine alongside it; the compose file below wires both up.
+Built on [SynapCores AIDB](https://hub.docker.com/r/synapcores/community) — storage, vectors, graph, immutable audit and agents in one engine, no glue services.
 
-## Quick start
+## Run it
+
+No clone, no build, no keys to paste. Save this as `docker-compose.yml`:
+
+```yaml
+name: synapcores-soar
+services:
+  synapcores:
+    image: synapcores/community:latest
+    environment:
+      AIDB_ACCEPT_LICENSE: '1'
+      AIDB_JWT_SECRET: demo-only-change-me-BwvOIXz94EaUJxXh0vmDXPMsXgS65mM8
+      AIDB_ADMIN_PASSWORD: demo-only-change-me
+    volumes:
+      - sc_engine_data:/var/lib/synapcores
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:8080/health']
+      interval: 10s
+      timeout: 3s
+      retries: 12
+
+  soar:
+    image: synapcores/soar:latest
+    depends_on:
+      synapcores:
+        condition: service_healthy
+    environment:
+      SYNAPCORES_URL: http://synapcores:8080
+      AIDB_ADMIN_PASSWORD: demo-only-change-me
+      AUTH_SECRET: demo-only-change-me-Our_ZTWUfr_lm5NcPGvjDB8LQqunuKXA
+      NEXTAUTH_URL: http://localhost:3001
+      MAIL_PROVIDER: console
+      SOAR_TRIAGE_MODE: auto
+    ports:
+      - '3001:3001'
+
+volumes:
+  sc_engine_data:
+```
 
 ```bash
-git clone https://github.com/SynapCores/synapcores-soar
-cd synapcores-soar
-cp .env.example .env
-
-# Set the three secrets in .env
-openssl rand -base64 32              # -> AIDB_JWT_SECRET
-openssl rand -base64 32              # -> AUTH_SECRET
-openssl rand -base64 18 | tr -d /+=  # -> AIDB_ADMIN_PASSWORD
-
 docker compose up -d
 ```
 
-Open <http://localhost:3001> and create the first account — that user becomes the workspace owner.
+Then open **<http://localhost:3001>** and create the first account — that user becomes the workspace owner.
+
+The secrets above are throwaway values for a local trial. Replace all three before anyone else can reach it.
 
 ## What the container does on start
 
