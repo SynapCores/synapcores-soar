@@ -11,17 +11,12 @@ git clone https://github.com/SynapCores/synapcores-soar
 cd synapcores-soar
 cp .env.example .env
 
-# 1. Generate the two secrets and put them in .env
-openssl rand -base64 32   # -> AIDB_JWT_SECRET
-openssl rand -base64 32   # -> AUTH_SECRET
+# Set the three secrets in .env
+openssl rand -base64 32              # -> AIDB_JWT_SECRET
+openssl rand -base64 32              # -> AUTH_SECRET
+openssl rand -base64 18 | tr -d /+=  # -> AIDB_ADMIN_PASSWORD
 
-# 2. Boot the engine, then copy the admin key it prints on first boot
-docker compose up -d synapcores
-docker compose logs synapcores | grep -o 'aidb_[A-Za-z0-9_-]*' | head -1
-#    -> paste into SYNAPCORES_ADMIN_API_KEY in .env
-
-# 3. Boot SOAR
-docker compose up -d soar
+docker compose up -d
 ```
 
 Open <http://localhost:3001> and create the first account — that user becomes the workspace owner.
@@ -29,15 +24,17 @@ Open <http://localhost:3001> and create the first account — that user becomes 
 ## What the container does on start
 
 1. Waits for the engine to answer `/health` (compose `depends_on` only orders starts).
-2. Applies the framework schema, then the SOAR-domain schema. Both are idempotent, so restarts are safe.
-3. Starts the Next.js production server on port 3001.
+2. Exchanges `AIDB_ADMIN_PASSWORD` for a gateway token via `POST /v1/auth/login`. No token is baked into the image and nothing is signed client-side. Supply `SYNAPCORES_ADMIN_API_KEY` instead if you want to hand the app a narrower key.
+3. Applies the framework schema, then the SOAR-domain schema. Both are idempotent, so restarts are safe.
+4. Starts the Next.js production server on port 3001.
 
 ## Environment
 
 | Variable | Required | Description |
 |---|---|---|
 | `SYNAPCORES_URL` | yes | Engine base URL, e.g. `http://synapcores:8080` |
-| `SYNAPCORES_ADMIN_API_KEY` | yes | Admin key the engine mints on first boot |
+| `AIDB_ADMIN_PASSWORD` | yes | Admin password pinned on the engine; the app exchanges it for a token |
+| `SYNAPCORES_ADMIN_API_KEY` | no | Supply a token directly to skip the login step |
 | `AUTH_SECRET` | yes | NextAuth signing secret, 32 random bytes |
 | `NEXTAUTH_URL` | yes | Public URL of this app, e.g. `http://localhost:3001` |
 | `FRAMEWORK_TENANT_KEYS_DIR` | no | Per-tenant key directory |

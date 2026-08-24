@@ -26,6 +26,10 @@ services:
     environment:
       AIDB_ACCEPT_LICENSE: '1'
       AIDB_JWT_SECRET: ${AIDB_JWT_SECRET:?Set AIDB_JWT_SECRET in .env}
+      # Pinning the admin password lets each app exchange it for a token at
+      # startup, so a first run is `docker compose up -d` with no manual
+      # log-grepping for the first-boot key.
+      AIDB_ADMIN_PASSWORD: ${AIDB_ADMIN_PASSWORD:?Set AIDB_ADMIN_PASSWORD in .env}
     ports:
       - '28080:8080'
     volumes:
@@ -49,7 +53,10 @@ services:
         condition: service_healthy
     environment:
       SYNAPCORES_URL: http://synapcores:8080
-      SYNAPCORES_ADMIN_API_KEY: ${SYNAPCORES_ADMIN_API_KEY:?Set SYNAPCORES_ADMIN_API_KEY in .env}
+      # Optional. Leave empty and the entrypoint mints a token from
+      # AIDB_ADMIN_PASSWORD; set it to hand the app a narrower key instead.
+      SYNAPCORES_ADMIN_API_KEY: ${SYNAPCORES_ADMIN_API_KEY:-}
+      AIDB_ADMIN_PASSWORD: ${AIDB_ADMIN_PASSWORD:?Set AIDB_ADMIN_PASSWORD in .env}
       FRAMEWORK_TENANT_KEYS_DIR: /var/synapcores/tenant-keys
       AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in .env}
       NEXTAUTH_URL: ${SOAR_NEXTAUTH_URL:-http://localhost:3001}
@@ -74,7 +81,11 @@ services:
       - sc-aml-app-cache:/app/.next
     environment:
       SYNAPCORES_URL: http://synapcores:8080
-      SYNAPCORES_ADMIN_API_KEY: ${SYNAPCORES_ADMIN_API_KEY:?Set SYNAPCORES_ADMIN_API_KEY in .env}
+      # Optional here too: a `:?` guard is evaluated when compose parses the
+      # WHOLE file, so leaving it on this service would break `up -d soar`
+      # for anyone who never configures AML.
+      SYNAPCORES_ADMIN_API_KEY: ${SYNAPCORES_ADMIN_API_KEY:-}
+      AIDB_ADMIN_PASSWORD: ${AIDB_ADMIN_PASSWORD:?Set AIDB_ADMIN_PASSWORD in .env}
       FRAMEWORK_TENANT_KEYS_DIR: /var/synapcores/tenant-keys
       AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in .env}
       NEXTAUTH_URL: ${AML_NEXTAUTH_URL:-http://localhost:3003}

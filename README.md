@@ -47,19 +47,13 @@ Requires **Docker 24+** and **~4 GB free RAM** for the SynapCores engine.
 git clone https://github.com/SynapCores/synapcores-soar
 cd synapcores-soar
 cp .env.example .env
-# Edit .env: set AIDB_JWT_SECRET and AUTH_SECRET (both 32 random bytes).
-# Leave SYNAPCORES_ADMIN_API_KEY blank for first boot.
+# Edit .env: set AIDB_JWT_SECRET, AUTH_SECRET and AIDB_ADMIN_PASSWORD.
+# Quick way:  python3 -c "import secrets; print(secrets.token_urlsafe(48))"
+# Leave SYNAPCORES_ADMIN_API_KEY blank — each app mints its own token from
+# AIDB_ADMIN_PASSWORD at startup. Set it only to supply a narrower key.
 
-# 1. Boot the SynapCores engine
-docker compose up -d synapcores
-
-# 2. Grab the engine admin password
-docker compose logs synapcores | grep "API key"
-#   Use the printed OpenClaw memory API key and,
-#   paste it into .env as SYNAPCORES_ADMIN_API_KEY
-
-# 3. Boot SOAR
-docker compose up -d soar
+# 1. Boot everything
+docker compose up -d
 
 # 4. Register the first user — becomes the workspace owner
 open http://localhost:3001
