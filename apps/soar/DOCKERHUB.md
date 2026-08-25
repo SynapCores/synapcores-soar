@@ -6,71 +6,44 @@ Built on [SynapCores AIDB](https://hub.docker.com/r/synapcores/community) — st
 
 ## Run it
 
-No clone, no build, no keys to paste. Save this as `docker-compose.yml`:
-
-```yaml
-name: synapcores-soar
-services:
-  synapcores:
-    image: synapcores/community:latest
-    environment:
-      AIDB_ACCEPT_LICENSE: '1'
-      AIDB_JWT_SECRET: demo-only-change-me-BwvOIXz94EaUJxXh0vmDXPMsXgS65mM8
-      AIDB_ADMIN_PASSWORD: demo-only-change-me
-    volumes:
-      - sc_engine_data:/var/lib/synapcores
-    healthcheck:
-      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:8080/health']
-      interval: 10s
-      timeout: 3s
-      retries: 12
-
-  soar:
-    image: synapcores/soar:latest
-    depends_on:
-      synapcores:
-        condition: service_healthy
-    environment:
-      SYNAPCORES_URL: http://synapcores:8080
-      AIDB_ADMIN_PASSWORD: demo-only-change-me
-      AUTH_SECRET: demo-only-change-me-Our_ZTWUfr_lm5NcPGvjDB8LQqunuKXA
-      NEXTAUTH_URL: http://localhost:3001
-      MAIL_PROVIDER: console
-      SOAR_TRIAGE_MODE: auto
-    ports:
-      - '3001:3001'
-
-volumes:
-  sc_engine_data:
+```bash
+docker run -p 3001:3001 synapcores/soar
 ```
+
+Open **<http://localhost:3001>** and create the first account — that user becomes the workspace owner.
+
+Everything is in this one image: the database, the triage agents and the web app. Nothing else to install, no keys to paste. First boot takes under a minute while the engine starts and the schema is applied.
+
+To keep data and logins across restarts, give it a volume and pin the session secret:
 
 ```bash
-docker compose up -d
+docker run -p 3001:3001 \
+  -v soar:/var/lib/synapcores \
+  -e AUTH_SECRET="$(openssl rand -base64 48)" \
+  synapcores/soar
 ```
-
-Then open **<http://localhost:3001>** and create the first account — that user becomes the workspace owner.
-
-The secrets above are throwaway values for a local trial. Replace all three before anyone else can reach it.
 
 ## What the container does on start
 
-1. Waits for the engine to answer `/health` (compose `depends_on` only orders starts).
-2. Exchanges `AIDB_ADMIN_PASSWORD` for a gateway token via `POST /v1/auth/login`. No token is baked into the image and nothing is signed client-side. Supply `SYNAPCORES_ADMIN_API_KEY` instead if you want to hand the app a narrower key.
+1. Starts the SynapCores engine and waits for it to answer.
+2. Generates credentials for this container and exchanges them for a gateway token. No image ships a known password and no token is baked in.
 3. Applies the framework schema, then the SOAR-domain schema. Both are idempotent, so restarts are safe.
-4. Starts the Next.js production server on port 3001.
+4. Starts the production server on port 3001.
 
-## Environment
+If any of those services dies later, the container exits rather than serving a half-working app.
 
-| Variable | Required | Description |
+## Configuration
+
+| Variable | Default | Description |
 |---|---|---|
-| `SYNAPCORES_URL` | yes | Engine base URL, e.g. `http://synapcores:8080` |
-| `AIDB_ADMIN_PASSWORD` | yes | Admin password pinned on the engine; the app exchanges it for a token |
-| `SYNAPCORES_ADMIN_API_KEY` | no | Supply a token directly to skip the login step |
-| `AUTH_SECRET` | yes | NextAuth signing secret, 32 random bytes |
-| `NEXTAUTH_URL` | yes | Public URL of this app, e.g. `http://localhost:3001` |
-| `FRAMEWORK_TENANT_KEYS_DIR` | no | Per-tenant key directory |
-| `MAIL_PROVIDER` | no | `console` (default) or a real provider |
-| `SOAR_TRIAGE_MODE` | no | `auto` (default) or `manual` |
+| `PORT` | `3001` | Port the UI listens on |
+| `AUTH_SECRET` | random per container | Session signing secret. Set it to keep users logged in across restarts. |
+| `NEXTAUTH_URL` | `http://localhost:3001` | Public URL, if you put this behind a proxy |
+| `AIDB_ADMIN_PASSWORD` | random per container | Set one if you want to reach the engine API yourself |
+| `MAIL_PROVIDER` | `console` | Where invitation mail goes |
+| `SOAR_TRIAGE_MODE` | `auto` | `auto` or `manual` |
+
+Nothing is required. The engine's API is on port 8080 inside the container; publish it with `-p 8080:8080` to query the data directly.
 
 ## Tags
 

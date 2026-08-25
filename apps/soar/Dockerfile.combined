@@ -1,0 +1,64 @@
+# syntax=docker/dockerfile:1
+#
+# SynapCores SOAR — SINGLE-IMAGE deployment.
+#
+#   docker run -p 3001:3001 synapcores/soar
+#
+# Engine and web app in one container, so trying SOAR is one command with no
+# compose file, no .env and no keys to paste. For a deployment where the engine
+# is operated and upgraded independently, use the compose file in the repo.
+#
+#   docker build -f apps/soar/Dockerfile.combined -t synapcores/soar .
+
+# ---------- build the Next.js app ----------
+FROM node:22-slim AS build
+# pnpm 9: pnpm 10+ blocks dependency build scripts and fails `next build`.
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
+WORKDIR /app
+COPY . .
+RUN pnpm install --frozen-lockfile \
+ && pnpm --filter @synapcores/soar build
+
+# ---------- runtime: the engine image, plus a node runtime ----------
+FROM synapcores/community:latest AS runtime
+
+# The community image is Ubuntu 22.04 with no node. Take the runtime from the
+# official node image rather than apt, to pin the same major the app was built
+# against.
+COPY --from=node:22-slim /usr/local/bin/node /usr/local/bin/node
+
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /srv
+# Next's standalone bundle carries its own traced node_modules.
+COPY --from=build /app/apps/soar/.next/standalone ./
+COPY --from=build /app/apps/soar/.next/static ./apps/soar/.next/static
+# Bootstrap runs at container start against the live engine, so the scripts and
+# their .sql files must be present. All of them import only node: builtins.
+COPY --from=build /app/apps/soar/bin ./apps/soar/bin
+COPY --from=build /app/apps/soar/src/lib/*.sql ./apps/soar/src/lib/
+COPY --from=build /app/packages/app-framework/bin ./packages/app-framework/bin
+COPY --from=build /app/packages/app-framework/src/db/*.sql ./packages/app-framework/src/db/
+
+COPY apps/soar/bin/allinone-entrypoint.sh /usr/local/bin/allinone
+RUN chmod +x /usr/local/bin/allinone && chown -R synapcores:synapcores /srv
+
+USER synapcores
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    AIDB_ACCEPT_LICENSE=1 \
+    PORT=3001 \
+    SYNAPCORES_URL=http://127.0.0.1:8080 \
+    MAIL_PROVIDER=console \
+    SOAR_TRIAGE_MODE=auto
+
+# 3001 = the SOAR UI. 8080 is the engine, publish it only if you want to query
+# the data directly.
+EXPOSE 3001 8080
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=120s --retries=8 \
+  CMD curl -fsS "http://127.0.0.1:${PORT}/" >/dev/null || exit 1
+
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/allinone"]

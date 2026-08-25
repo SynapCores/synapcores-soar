@@ -64,7 +64,10 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: apps/soar/Dockerfile
+          # Single self-contained image: engine + web app, so `docker run` is
+          # the whole install. The app-only Dockerfile remains in the repo for
+          # the compose deployment that upgrades the engine independently.
+          file: apps/soar/Dockerfile.combined
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
